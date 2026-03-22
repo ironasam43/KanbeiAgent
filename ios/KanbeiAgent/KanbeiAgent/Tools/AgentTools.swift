@@ -53,6 +53,31 @@ struct AgentTools {
         required: []
       )
     ),
+    ToolDefinition(
+      name: "grep",
+      description: "ファイル内容を正規表現で検索する。マッチした行をファイルパスと行番号付きで返す。",
+      inputSchema: .init(
+        type: "object",
+        properties: [
+          "pattern": .init(type: "string", description: "検索する正規表現パターン"),
+          "path": .init(type: "string", description: "検索対象のディレクトリまたはファイルパス。省略時は作業ディレクトリ。"),
+          "glob": .init(type: "string", description: "対象ファイルを絞るglobパターン（例: *.swift）。省略時は全ファイル。")
+        ],
+        required: ["pattern"]
+      )
+    ),
+    ToolDefinition(
+      name: "glob",
+      description: "globパターンでファイルパスを検索する",
+      inputSchema: .init(
+        type: "object",
+        properties: [
+          "pattern": .init(type: "string", description: "globパターン（例: **/*.swift, src/**/*.ts）"),
+          "path": .init(type: "string", description: "検索のベースディレクトリ。省略時は作業ディレクトリ。")
+        ],
+        required: ["pattern"]
+      )
+    ),
   ]
 
   // MARK: - ツール実行
@@ -67,6 +92,10 @@ struct AgentTools {
       return await bash(input: input)
     case "list_files":
       return listFiles(input: input)
+    case "grep":
+      return grep(input: input)
+    case "glob":
+      return glob(input: input)
     default:
       return "エラー: 未知のツール '\(name)'"
     }
@@ -143,6 +172,73 @@ struct AgentTools {
     } catch {
       return "エラー: \(error.localizedDescription)"
     }
+  }
+
+  private func grep(input: [String: Any]) -> String {
+    guard let pattern = input["pattern"] as? String else { return "エラー: pattern が必要です" }
+    let basePath = input["path"] as? String
+    let baseURL = basePath.map { resolvedURL($0) } ?? workingDirectory
+    let globPattern = input["glob"] as? String
+
+    guard let regex = try? NSRegularExpression(pattern: pattern) else {
+      return "エラー: 無効な正規表現パターン"
+    }
+
+    var results: [String] = []
+    let files = allFiles(in: baseURL, matching: globPattern)
+
+    for fileURL in files {
+      guard let content = try? String(contentsOf: fileURL, encoding: .utf8) else { continue }
+      let lines = content.components(separatedBy: "\n")
+      for (i, line) in lines.enumerated() {
+        let range = NSRange(line.startIndex..., in: line)
+        if regex.firstMatch(in: line, range: range) != nil {
+          let relativePath = fileURL.path.replacingOccurrences(of: workingDirectory.path + "/", with: "")
+          results.append("\(relativePath):\(i + 1): \(line)")
+        }
+      }
+    }
+
+    return results.isEmpty ? "（マッチなし）" : results.joined(separator: "\n")
+  }
+
+  private func glob(input: [String: Any]) -> String {
+    guard let pattern = input["pattern"] as? String else { return "エラー: pattern が必要です" }
+    let basePath = input["path"] as? String
+    let baseURL = basePath.map { resolvedURL($0) } ?? workingDirectory
+
+    let files = allFiles(in: baseURL, matching: pattern)
+    let paths = files.map { url -> String in
+      url.path.replacingOccurrences(of: workingDirectory.path + "/", with: "")
+    }.sorted()
+
+    return paths.isEmpty ? "（マッチなし）" : paths.joined(separator: "\n")
+  }
+
+  private func allFiles(in directory: URL, matching globPattern: String?) -> [URL] {
+    guard let enumerator = FileManager.default.enumerator(
+      at: directory,
+      includingPropertiesForKeys: [.isDirectoryKey],
+      options: [.skipsHiddenFiles]
+    ) else { return [] }
+
+    let ignored: Set<String> = [".git", "node_modules", ".build", "DerivedData"]
+    var files: [URL] = []
+
+    for case let url as URL in enumerator {
+      let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+      if isDir {
+        if ignored.contains(url.lastPathComponent) { enumerator.skipDescendants() }
+        continue
+      }
+      if let pattern = globPattern {
+        let name = url.lastPathComponent
+        let pred = NSPredicate(format: "SELF LIKE %@", pattern)
+        guard pred.evaluate(with: name) else { continue }
+      }
+      files.append(url)
+    }
+    return files
   }
 
   // MARK: - ヘルパー
