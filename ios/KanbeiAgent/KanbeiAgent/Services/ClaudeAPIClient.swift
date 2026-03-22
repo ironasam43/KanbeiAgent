@@ -4,11 +4,12 @@ import Foundation
 
 class ClaudeAPIClient {
   private let apiKey: String
-  private let model = "claude-sonnet-4-6"
+  private let model: String
   private let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
 
-  init(apiKey: String) {
+  init(apiKey: String, model: String = "claude-sonnet-4-6") {
     self.apiKey = apiKey
+    self.model = model
   }
 
   // MARK: - ストリーミングリクエスト

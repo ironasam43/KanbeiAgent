@@ -10,8 +10,9 @@ class AgentViewModel: ObservableObject {
   @Published var workingDirectory: URL = FileManager.default.homeDirectoryForCurrentUser
 
   @AppStorage("claudeApiKey") private var apiKey = ""
+  @AppStorage("claudeModel") private var claudeModel = "claude-sonnet-4-6"
 
-  private var apiClient: ClaudeAPIClient { ClaudeAPIClient(apiKey: apiKey) }
+  private var apiClient: ClaudeAPIClient { ClaudeAPIClient(apiKey: apiKey, model: claudeModel) }
   private var tools: AgentTools { AgentTools(workingDirectory: workingDirectory) }
 
   // API送信用の会話履歴

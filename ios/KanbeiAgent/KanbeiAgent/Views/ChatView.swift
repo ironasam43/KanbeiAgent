@@ -180,8 +180,15 @@ private struct MessageRow: View {
 
 private struct SettingsView: View {
   @AppStorage("claudeApiKey") private var claudeApiKey = ""
+  @AppStorage("claudeModel") private var claudeModel = "claude-sonnet-4-6"
   @State private var inputKey = ""
   @Environment(\.dismiss) private var dismiss
+
+  private let models: [(id: String, label: String)] = [
+    ("claude-sonnet-4-6", "Claude Sonnet 4.6（推奨）"),
+    ("claude-opus-4-6",   "Claude Opus 4.6（高精度）"),
+    ("claude-haiku-4-5-20251001", "Claude Haiku 4.5（高速）"),
+  ]
 
   var body: some View {
     NavigationStack {
@@ -193,6 +200,16 @@ private struct SettingsView: View {
         } footer: {
           Text("Anthropic Consoleから取得してください。")
             .font(.caption)
+        }
+
+        Section {
+          Picker("モデル", selection: $claudeModel) {
+            ForEach(models, id: \.id) { model in
+              Text(model.label).tag(model.id)
+            }
+          }
+        } header: {
+          Text("モデル")
         }
       }
       .formStyle(.grouped)
@@ -210,6 +227,6 @@ private struct SettingsView: View {
       }
       .onAppear { inputKey = claudeApiKey }
     }
-    .frame(minWidth: 360, minHeight: 180)
+    .frame(minWidth: 360, minHeight: 240)
   }
 }
