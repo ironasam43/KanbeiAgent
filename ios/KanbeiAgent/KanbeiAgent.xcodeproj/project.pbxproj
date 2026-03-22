@@ -6,28 +6,26 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXFileReference section */
-		200F1B562F6FB28B003BBA46 /* KanbeiAgent.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KanbeiAgent.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		58E2E833340AA8D37320D419 /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
-		B707102CE27EBB7C6883A689 /* ClaudeAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAPIClient.swift; sourceTree = "<group>"; };
-		22E428227332E541B5B79E65 /* AgentTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentTools.swift; sourceTree = "<group>"; };
-		837CFCD5352084F033C29143 /* AgentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentViewModel.swift; sourceTree = "<group>"; };
-		299957463AD18A430576E44E /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
-		A1C3F8D2E047B56901234ABC /* KanbeiAgentApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KanbeiAgentApp.swift; sourceTree = "<group>"; };
-		B2D4E9F1A158C67012345DEF /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-/* End PBXFileReference section */
-
 /* Begin PBXBuildFile section */
 		22D37D0DFA612305D4DDB61B /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58E2E833340AA8D37320D419 /* Message.swift */; };
+		2D98D562F96C253AFD44EA05 /* AgentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 837CFCD5352084F033C29143 /* AgentViewModel.swift */; };
 		50587B1B765E7B1D3B6BAB26 /* ClaudeAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B707102CE27EBB7C6883A689 /* ClaudeAPIClient.swift */; };
 		75BD865DFEED2AAB51DB88F2 /* AgentTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22E428227332E541B5B79E65 /* AgentTools.swift */; };
-		2D98D562F96C253AFD44EA05 /* AgentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 837CFCD5352084F033C29143 /* AgentViewModel.swift */; };
-		D36808D4897DFD7DB281CCB9 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 299957463AD18A430576E44E /* ChatView.swift */; };
 		C3E5FA02B269D78123456F01 /* KanbeiAgentApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C3F8D2E047B56901234ABC /* KanbeiAgentApp.swift */; };
+		D36808D4897DFD7DB281CCB9 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 299957463AD18A430576E44E /* ChatView.swift */; };
 		D4F60B13C37AE89234567012 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2D4E9F1A158C67012345DEF /* ContentView.swift */; };
 /* End PBXBuildFile section */
 
-
+/* Begin PBXFileReference section */
+		200F1B562F6FB28B003BBA46 /* KanbeiAgent.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KanbeiAgent.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		22E428227332E541B5B79E65 /* AgentTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentTools.swift; sourceTree = "<group>"; };
+		299957463AD18A430576E44E /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
+		58E2E833340AA8D37320D419 /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
+		837CFCD5352084F033C29143 /* AgentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentViewModel.swift; sourceTree = "<group>"; };
+		A1C3F8D2E047B56901234ABC /* KanbeiAgentApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KanbeiAgentApp.swift; sourceTree = "<group>"; };
+		B2D4E9F1A158C67012345DEF /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		B707102CE27EBB7C6883A689 /* ClaudeAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAPIClient.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		200F1B532F6FB28B003BBA46 /* Frameworks */ = {
@@ -56,6 +54,38 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		628CBF17DE23677B42BB5A55 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				837CFCD5352084F033C29143 /* AgentViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		6E265EB74399F2AA092D0BD6 /* Tools */ = {
+			isa = PBXGroup;
+			children = (
+				22E428227332E541B5B79E65 /* AgentTools.swift */,
+			);
+			path = Tools;
+			sourceTree = "<group>";
+		};
+		B7579708A30630279A8562B2 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				58E2E833340AA8D37320D419 /* Message.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		BCFB0B704A2A89F6AD87A938 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				299957463AD18A430576E44E /* ChatView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
 		D0869597169E6A78D81D9D89 /* KanbeiAgent */ = {
 			isa = PBXGroup;
 			children = (
@@ -70,44 +100,12 @@
 			path = KanbeiAgent;
 			sourceTree = "<group>";
 		};
-		B7579708A30630279A8562B2 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				58E2E833340AA8D37320D419 /* Message.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
 		E793C1602320F068C76103A8 /* Services */ = {
 			isa = PBXGroup;
 			children = (
 				B707102CE27EBB7C6883A689 /* ClaudeAPIClient.swift */,
 			);
 			path = Services;
-			sourceTree = "<group>";
-		};
-		6E265EB74399F2AA092D0BD6 /* Tools */ = {
-			isa = PBXGroup;
-			children = (
-				22E428227332E541B5B79E65 /* AgentTools.swift */,
-			);
-			path = Tools;
-			sourceTree = "<group>";
-		};
-		628CBF17DE23677B42BB5A55 /* ViewModels */ = {
-			isa = PBXGroup;
-			children = (
-				837CFCD5352084F033C29143 /* AgentViewModel.swift */,
-			);
-			path = ViewModels;
-			sourceTree = "<group>";
-		};
-		BCFB0B704A2A89F6AD87A938 /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				299957463AD18A430576E44E /* ChatView.swift */,
-			);
-			path = Views;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -323,10 +321,9 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = C8B7A9M8F7;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -355,10 +352,9 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = C8B7A9M8F7;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (

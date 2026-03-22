@@ -66,6 +66,7 @@ struct ChatView: View {
               Text(error)
                 .font(.caption)
                 .foregroundStyle(.red)
+                .textSelection(.enabled)
                 .padding(.horizontal)
             }
           }

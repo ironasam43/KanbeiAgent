@@ -26,7 +26,6 @@ class ClaudeAPIClient {
     request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-    request.setValue("true", forHTTPHeaderField: "anthropic-beta")
 
     let body: [String: Any] = [
       "model": model,
@@ -42,8 +41,11 @@ class ClaudeAPIClient {
     request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
     let (stream, response) = try await URLSession.shared.bytes(for: request)
-    guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-      throw ClaudeError.httpError
+    guard let http = response as? HTTPURLResponse else { throw ClaudeError.httpError(0, "") }
+    guard (200..<300).contains(http.statusCode) else {
+      var body = ""
+      for try await line in stream.lines { body += line + "\n" }
+      throw ClaudeError.httpError(http.statusCode, body)
     }
 
     // SSEパース
@@ -99,8 +101,8 @@ class ClaudeAPIClient {
           let result = await onToolUse(currentToolId, currentToolName, input)
           collectedContents.append(APIContent(
             type: "tool_result",
-            toolUseId: currentToolId,
-            content: result
+            content: result,
+            toolUseId: currentToolId
           ))
 
           currentToolName = ""
@@ -120,12 +122,12 @@ class ClaudeAPIClient {
 }
 
 enum ClaudeError: LocalizedError {
-  case httpError
+  case httpError(Int, String)
   case parseError
 
   var errorDescription: String? {
     switch self {
-    case .httpError: "Claude API HTTPエラー"
+    case .httpError(let code, let body): "Claude API エラー (HTTP \(code))\n\(body)"
     case .parseError: "レスポンスの解析に失敗しました"
     }
   }

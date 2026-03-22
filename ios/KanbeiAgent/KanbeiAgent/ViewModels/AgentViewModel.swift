@@ -88,13 +88,18 @@ class AgentViewModel: ObservableObject {
         }
         break
       } else {
-        // ツール結果をhistoryに追加して続行
-        var assistantContents = [APIContent.text(messages[assistantIndex].content)]
+        // ツール結果をhistoryに追加して続行（空テキストは除外）
+        var assistantContents: [APIContent] = []
+        let assistantText = messages[assistantIndex].content
+        if !assistantText.isEmpty {
+          assistantContents.append(.text(assistantText))
+        }
         assistantContents.append(contentsOf: toolUseContents)
         history.append(.assistant(assistantContents))
 
         for result in toolResultContents {
-          if let toolUseId = result.toolUseId, let content = result.content {
+          if let toolUseId = result.toolUseId {
+            let content = result.content?.isEmpty == false ? result.content! : "(empty)"
             history.append(.toolResult(toolUseId: toolUseId, content: content))
           }
         }

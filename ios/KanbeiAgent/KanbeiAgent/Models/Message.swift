@@ -29,7 +29,7 @@ struct APIMessage: Codable {
 
   static func toolResult(toolUseId: String, content: String) -> APIMessage {
     APIMessage(role: "user", content: [
-      APIContent(type: "tool_result", toolUseId: toolUseId, content: content)
+      APIContent(type: "tool_result", content: content, toolUseId: toolUseId)
     ])
   }
 }
@@ -40,8 +40,8 @@ struct APIContent: Codable {
   var id: String?          // tool_use の id
   var name: String?        // tool_use の name
   var input: AnyCodable?   // tool_use の input
-  var toolUseId: String?   // tool_result の tool_use_id
   var content: String?     // tool_result の content
+  var toolUseId: String?   // tool_result の tool_use_id
 
   enum CodingKeys: String, CodingKey {
     case type, text, id, name, input
