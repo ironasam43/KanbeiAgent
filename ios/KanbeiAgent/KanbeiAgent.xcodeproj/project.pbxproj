@@ -357,6 +357,7 @@
 /* Begin XCSwiftPackageProductDependency section */
 		2048027C2F7125DF00FD50BF /* KanbeiAgentCore */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 2048027B2F7125DF00FD50BF /* XCLocalSwiftPackageReference "../../../KanbeiAgent" */;
 			productName = KanbeiAgentCore;
 		};
 /* End XCSwiftPackageProductDependency section */
