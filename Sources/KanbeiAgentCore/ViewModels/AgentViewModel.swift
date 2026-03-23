@@ -102,6 +102,13 @@ public class AgentViewModel: ObservableObject {
     pending.continuation.resume(returning: approved)
   }
 
+  public var currentTask: Task<Void, Never>?
+
+  public func cancelGeneration() {
+    currentTask?.cancel()
+    currentTask = nil
+  }
+
   @AppStorage("claudeApiKey") private var apiKey = ""
   @AppStorage("claudeModel") private var claudeModel = "claude-sonnet-4-6"
 
@@ -159,8 +166,9 @@ public class AgentViewModel: ObservableObject {
 
   // MARK: - メッセージ送信
 
-  public func send(_ userInput: String) async {
-    await sendWithImages(userInput, images: [])
+  public func send(_ userInput: String) {
+    let images: [(base64: String, mediaType: String)] = []
+    currentTask = Task { await sendWithImages(userInput, images: images) }
   }
 
   public func sendWithImages(_ userInput: String, images: [(base64: String, mediaType: String)]) async {
@@ -190,6 +198,10 @@ public class AgentViewModel: ObservableObject {
 
     do {
       try await runAgentLoop(assistantIndex: assistantIndex)
+    } catch is CancellationError {
+      messages[assistantIndex].content += messages[assistantIndex].content.isEmpty
+        ? "⏹ 生成を停止しました"
+        : "\n\n⏹ 生成を停止しました"
     } catch {
       errorMessage = error.localizedDescription
       scrollTrigger += 1
@@ -199,6 +211,7 @@ public class AgentViewModel: ObservableObject {
       messages[i].isStreaming = false
     }
     isRunning = false
+    currentTask = nil
     scrollTrigger += 1
     saveHistory()
   }
@@ -256,6 +269,7 @@ public class AgentViewModel: ObservableObject {
     var iteration = 0
 
     while iteration < maxIterations {
+      try Task.checkCancellation()
       iteration += 1
       let collectedContents = try await sendWithRetry(
         assistantIndex: assistantIndex,

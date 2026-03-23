@@ -50,7 +50,15 @@ public struct ChatView: View {
         Spacer()
 
         if viewModel.isRunning {
-          ProgressView().controlSize(.small)
+          Button {
+            viewModel.cancelGeneration()
+          } label: {
+            Label("停止", systemImage: "stop.circle.fill")
+              .foregroundStyle(.red)
+          }
+          .buttonStyle(.bordered)
+          .controlSize(.small)
+          .help("生成を停止")
         }
 
         Button {
@@ -438,7 +446,7 @@ public struct ChatView: View {
     }
 
     let imagePayloads = images.map { (base64: $0.base64, mediaType: $0.mediaType) }
-    Task { await viewModel.sendWithImages(text, images: imagePayloads) }
+    viewModel.currentTask = Task { await viewModel.sendWithImages(text, images: imagePayloads) }
   }
 }
 
