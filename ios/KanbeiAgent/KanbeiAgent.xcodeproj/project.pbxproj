@@ -7,24 +7,17 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		22D37D0DFA612305D4DDB61B /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58E2E833340AA8D37320D419 /* Message.swift */; };
-		2D98D562F96C253AFD44EA05 /* AgentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 837CFCD5352084F033C29143 /* AgentViewModel.swift */; };
-		50587B1B765E7B1D3B6BAB26 /* ClaudeAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B707102CE27EBB7C6883A689 /* ClaudeAPIClient.swift */; };
-		75BD865DFEED2AAB51DB88F2 /* AgentTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22E428227332E541B5B79E65 /* AgentTools.swift */; };
+		200F1BBC2F711C1E003BBA46 /* SimpleAgentContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200F1BBB2F711C1E003BBA46 /* SimpleAgentContext.swift */; };
+		200F1BBF2F711CB8003BBA46 /* KanbeiAgentCore in Frameworks */ = {isa = PBXBuildFile; productRef = 200F1BBE2F711CB8003BBA46 /* KanbeiAgentCore */; };
 		C3E5FA02B269D78123456F01 /* KanbeiAgentApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C3F8D2E047B56901234ABC /* KanbeiAgentApp.swift */; };
-		D36808D4897DFD7DB281CCB9 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 299957463AD18A430576E44E /* ChatView.swift */; };
 		D4F60B13C37AE89234567012 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2D4E9F1A158C67012345DEF /* ContentView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		200F1B562F6FB28B003BBA46 /* KanbeiAgent.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KanbeiAgent.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		22E428227332E541B5B79E65 /* AgentTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentTools.swift; sourceTree = "<group>"; };
-		299957463AD18A430576E44E /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
-		58E2E833340AA8D37320D419 /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
-		837CFCD5352084F033C29143 /* AgentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentViewModel.swift; sourceTree = "<group>"; };
+		200F1BBB2F711C1E003BBA46 /* SimpleAgentContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleAgentContext.swift; sourceTree = "<group>"; };
 		A1C3F8D2E047B56901234ABC /* KanbeiAgentApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KanbeiAgentApp.swift; sourceTree = "<group>"; };
 		B2D4E9F1A158C67012345DEF /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		B707102CE27EBB7C6883A689 /* ClaudeAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAPIClient.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -32,6 +25,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				200F1BBF2F711CB8003BBA46 /* KanbeiAgentCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -54,58 +48,14 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		628CBF17DE23677B42BB5A55 /* ViewModels */ = {
-			isa = PBXGroup;
-			children = (
-				837CFCD5352084F033C29143 /* AgentViewModel.swift */,
-			);
-			path = ViewModels;
-			sourceTree = "<group>";
-		};
-		6E265EB74399F2AA092D0BD6 /* Tools */ = {
-			isa = PBXGroup;
-			children = (
-				22E428227332E541B5B79E65 /* AgentTools.swift */,
-			);
-			path = Tools;
-			sourceTree = "<group>";
-		};
-		B7579708A30630279A8562B2 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				58E2E833340AA8D37320D419 /* Message.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
-		BCFB0B704A2A89F6AD87A938 /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				299957463AD18A430576E44E /* ChatView.swift */,
-			);
-			path = Views;
-			sourceTree = "<group>";
-		};
 		D0869597169E6A78D81D9D89 /* KanbeiAgent */ = {
 			isa = PBXGroup;
 			children = (
 				A1C3F8D2E047B56901234ABC /* KanbeiAgentApp.swift */,
 				B2D4E9F1A158C67012345DEF /* ContentView.swift */,
-				B7579708A30630279A8562B2 /* Models */,
-				E793C1602320F068C76103A8 /* Services */,
-				6E265EB74399F2AA092D0BD6 /* Tools */,
-				628CBF17DE23677B42BB5A55 /* ViewModels */,
-				BCFB0B704A2A89F6AD87A938 /* Views */,
+				200F1BBB2F711C1E003BBA46 /* SimpleAgentContext.swift */,
 			);
 			path = KanbeiAgent;
-			sourceTree = "<group>";
-		};
-		E793C1602320F068C76103A8 /* Services */ = {
-			isa = PBXGroup;
-			children = (
-				B707102CE27EBB7C6883A689 /* ClaudeAPIClient.swift */,
-			);
-			path = Services;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -125,6 +75,7 @@
 			);
 			name = KanbeiAgent;
 			packageProductDependencies = (
+				200F1BBE2F711CB8003BBA46 /* KanbeiAgentCore */,
 			);
 			productName = KanbeiAgent;
 			productReference = 200F1B562F6FB28B003BBA46 /* KanbeiAgent.app */;
@@ -154,6 +105,9 @@
 			);
 			mainGroup = 200F1B4D2F6FB28B003BBA46;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				200F1BBD2F711CB8003BBA46 /* XCLocalSwiftPackageReference "../../../KanbeiAgent" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 200F1B572F6FB28B003BBA46 /* Products */;
 			projectDirPath = "";
@@ -181,11 +135,7 @@
 			files = (
 				C3E5FA02B269D78123456F01 /* KanbeiAgentApp.swift in Sources */,
 				D4F60B13C37AE89234567012 /* ContentView.swift in Sources */,
-				22D37D0DFA612305D4DDB61B /* Message.swift in Sources */,
-				50587B1B765E7B1D3B6BAB26 /* ClaudeAPIClient.swift in Sources */,
-				75BD865DFEED2AAB51DB88F2 /* AgentTools.swift in Sources */,
-				2D98D562F96C253AFD44EA05 /* AgentViewModel.swift in Sources */,
-				D36808D4897DFD7DB281CCB9 /* ChatView.swift in Sources */,
+				200F1BBC2F711C1E003BBA46 /* SimpleAgentContext.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -396,6 +346,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		200F1BBD2F711CB8003BBA46 /* XCLocalSwiftPackageReference "../../../KanbeiAgent" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../../KanbeiAgent;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		200F1BBE2F711CB8003BBA46 /* KanbeiAgentCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = KanbeiAgentCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 200F1B4E2F6FB28B003BBA46 /* Project object */;
 }

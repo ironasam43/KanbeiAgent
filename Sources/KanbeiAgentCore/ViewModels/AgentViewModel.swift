@@ -3,18 +3,88 @@ import Combine
 import SwiftUI
 
 @MainActor
-class AgentViewModel: ObservableObject {
-  @Published var messages: [Message] = []
-  @Published var isRunning = false
-  @Published var errorMessage: String?
-  @Published var scrollTrigger = 0
-  @Published var workingDirectory: URL = FileManager.default.homeDirectoryForCurrentUser
-  @Published var pendingBashCommand: PendingBashCommand?
+public class AgentViewModel: ObservableObject {
+  @Published public var messages: [Message] = []
+  @Published public var isRunning = false
+  @Published public var errorMessage: String?
+  @Published public var scrollTrigger = 0
+  @Published public var workingDirectory: URL
+  @Published public var pendingBashCommand: PendingBashCommand?
 
-  struct PendingBashCommand: Identifiable {
-    let id = UUID()
-    let command: String
-    let continuation: CheckedContinuation<Bool, Never>
+  private let historyFileURL: URL
+  private let systemPrompt: String
+
+  public init(context: any KanbeiAgentContext) {
+    let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+    let dir = support.appendingPathComponent("KanbeiAgent")
+    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+
+    self.workingDirectory = context.workingDirectoryURL
+    self.historyFileURL = dir.appendingPathComponent("\(context.historyFileName).json")
+
+    let fileTree = AgentViewModel.buildFileTree(at: context.workingDirectoryURL)
+
+    var prompt = """
+      あなたは優秀なソフトウェアエンジニアのAIエージェントです。
+
+      【最重要】ツールを使う前にテキストで計画・説明・差分まとめを書いてはいけません。
+      まず即座にツールを呼び出し、作業が完了してから結果をテキストで報告してください。
+
+      - ファイルを読んだら、次のレスポンスで即座に書き込みを開始すること
+      - 「実行します」「書き換えます」などの宣言テキストを出力した場合、同じレスポンス内で必ずツールも呼び出すこと
+      - 同じツールを同じ引数で2回以上呼ばない
+      - ファイル構成は下記に記載済みなので、list_filesやglobで探索しないこと
+      - 不必要な確認や追加調査は行わない
+      - タスクが完了したら必ずテキストで結果を伝えて終了する
+
+      作業ディレクトリ: \(context.workingDirectoryURL.path)
+      """
+
+    if !context.systemPromptAddendum.isEmpty {
+      prompt += "\n\n\(context.systemPromptAddendum)"
+    }
+
+    if !fileTree.isEmpty {
+      prompt += """
+
+      ## プロジェクトのファイル構成
+      以下のパスはすべて作業ディレクトリ（\(context.workingDirectoryURL.path)）からの相対パスです。
+
+      \(fileTree)
+      """
+    }
+
+    self.systemPrompt = prompt
+  }
+
+  private static func buildFileTree(at root: URL) -> String {
+    let ignored: Set<String> = [".git", "DerivedData", ".build", "node_modules", "xcuserdata", ".DS_Store"]
+    let allowedExtensions: Set<String> = ["swift", "md", "json", "yaml", "yml", "txt", "sh"]
+    guard let enumerator = FileManager.default.enumerator(
+      at: root,
+      includingPropertiesForKeys: [.isDirectoryKey],
+      options: [.skipsHiddenFiles]
+    ) else { return "" }
+
+    var paths: [String] = []
+    for case let url as URL in enumerator {
+      let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+      if isDir {
+        if ignored.contains(url.lastPathComponent) { enumerator.skipDescendants() }
+        continue
+      }
+      guard allowedExtensions.contains(url.pathExtension.lowercased()) else { continue }
+      let relative = url.path.replacingOccurrences(of: root.path + "/", with: "")
+      paths.append(relative)
+      if paths.count >= 150 { break }
+    }
+    return paths.sorted().joined(separator: "\n")
+  }
+
+  public struct PendingBashCommand: Identifiable {
+    public let id = UUID()
+    public let command: String
+    public let continuation: CheckedContinuation<Bool, Never>
   }
 
   private static let dangerousPatterns: [String] = [
@@ -26,7 +96,7 @@ class AgentViewModel: ObservableObject {
     Self.dangerousPatterns.contains { command.contains($0) }
   }
 
-  func confirmBash(approved: Bool) {
+  public func confirmBash(approved: Bool) {
     guard let pending = pendingBashCommand else { return }
     pendingBashCommand = nil
     pending.continuation.resume(returning: approved)
@@ -39,36 +109,11 @@ class AgentViewModel: ObservableObject {
     let model = useHaiku ? "claude-haiku-4-5-20251001" : claudeModel
     return ClaudeAPIClient(apiKey: apiKey, model: model, maxTokens: useHaiku ? 2048 : 4096)
   }
-  private var tools: AgentTools { AgentTools(workingDirectory: workingDirectory) }
 
-  // API送信用の会話履歴
+  private var tools: AgentTools { AgentTools(workingDirectory: workingDirectory) }
   private var history: [APIMessage] = []
 
-  private var systemPrompt: String {
-    """
-    あなたは優秀なソフトウェアエンジニアのAIエージェントです。
-
-    【最重要】ツールを使う前にテキストで計画・説明・差分まとめを書いてはいけません。
-    まず即座にツールを呼び出し、作業が完了してから結果をテキストで報告してください。
-
-    - ファイルを読んだら、次のレスポンスで即座に書き込みを開始すること
-    - 「実行します」「書き換えます」などの宣言テキストを出力した場合、同じレスポンス内で必ずツールも呼び出すこと
-    - 同じツールを同じ引数で2回以上呼ばない
-    - 不必要な確認や追加調査は行わない
-    - タスクが完了したら必ずテキストで結果を伝えて終了する
-
-    作業ディレクトリ: \(workingDirectory.path)
-    """
-  }
-
   // MARK: - 永続化
-
-  private static var historyFileURL: URL {
-    let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-    let dir = support.appendingPathComponent("KanbeiAgent")
-    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-    return dir.appendingPathComponent("history.json")
-  }
 
   private struct SavedHistory: Codable {
     var messages: [Message]
@@ -77,7 +122,6 @@ class AgentViewModel: ObservableObject {
   }
 
   private func saveHistory() {
-    // toolログ（実行中/完了）と空のassistantは捨て、userと内容のあるassistantだけ保存
     let toSave = messages.compactMap { msg -> Message? in
       if msg.role == .tool { return nil }
       if msg.role == .assistant && msg.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return nil }
@@ -91,11 +135,11 @@ class AgentViewModel: ObservableObject {
       workingDirectoryPath: workingDirectory.path
     )
     guard let data = try? JSONEncoder().encode(saved) else { return }
-    try? data.write(to: Self.historyFileURL)
+    try? data.write(to: historyFileURL)
   }
 
-  func loadHistory() {
-    guard let data = try? Data(contentsOf: Self.historyFileURL),
+  public func loadHistory() {
+    guard let data = try? Data(contentsOf: historyFileURL),
           let saved = try? JSONDecoder().decode(SavedHistory.self, from: data) else { return }
     messages = saved.messages
     history = sanitizeHistory(saved.history)
@@ -104,7 +148,6 @@ class AgentViewModel: ObservableObject {
     }
   }
 
-  /// 孤立したtool_use（対応するtool_resultがない）を末尾から除去する
   private func sanitizeHistory(_ h: [APIMessage]) -> [APIMessage] {
     var result = h
     while let last = result.last, last.role == "assistant",
@@ -116,11 +159,11 @@ class AgentViewModel: ObservableObject {
 
   // MARK: - メッセージ送信
 
-  func send(_ userInput: String) async {
+  public func send(_ userInput: String) async {
     await sendWithImages(userInput, images: [])
   }
 
-  func sendWithImages(_ userInput: String, images: [(base64: String, mediaType: String)]) async {
+  public func sendWithImages(_ userInput: String, images: [(base64: String, mediaType: String)]) async {
     let trimmed = userInput.trimmingCharacters(in: .whitespaces)
     guard !trimmed.isEmpty || !images.isEmpty else { return }
     guard !apiKey.isEmpty else {
@@ -128,20 +171,17 @@ class AgentViewModel: ObservableObject {
       return
     }
 
-    // UI用メッセージ（テキストのみ表示、画像は枚数をサフィックスで表示）
     let displayText = images.isEmpty
       ? trimmed
       : trimmed + (trimmed.isEmpty ? "" : "\n") + "📎 画像 \(images.count)枚"
     messages.append(Message(role: .user, content: displayText))
 
-    // API用 history
     if images.isEmpty {
       history.append(.user(trimmed))
     } else {
       history.append(.userWithImages(trimmed, images: images))
     }
 
-    // Assistantのストリーミング枠を追加
     let assistantIndex = messages.count
     messages.append(Message(role: .assistant, content: "", isStreaming: true))
 
@@ -155,7 +195,6 @@ class AgentViewModel: ObservableObject {
       scrollTrigger += 1
     }
 
-    // ループ内で追加されたすべてのassistantメッセージのisStreamingを解除
     for i in messages.indices where messages[i].isStreaming {
       messages[i].isStreaming = false
     }
@@ -166,7 +205,6 @@ class AgentViewModel: ObservableObject {
 
   // MARK: - 履歴の最適化
 
-  // 直近N回のユーザー発話ターンのみAPIに送る（tool_use/tool_resultペアは崩さない）
   private var smartTruncatedHistory: [APIMessage] {
     let keepTurns = 5
     let userTextIndices = history.indices.filter {
@@ -193,10 +231,11 @@ class AgentViewModel: ObservableObject {
           systemPrompt: systemPrompt,
           onText: onText, onToolUse: onToolUse
         )
+        await TokenUsageStore.shared.record(usage: result.usage)
         return result.contents
       } catch ClaudeError.httpError(429, _) {
         if attempt < maxRetries - 1 {
-          let wait = 30 * (1 << attempt) // 30s → 60s → 120s → 240s
+          let wait = 30 * (1 << attempt)
           errorMessage = "レート制限中… \(wait)秒後に自動リトライします (\(attempt + 1)/\(maxRetries - 1))"
           scrollTrigger += 1
           try await Task.sleep(for: .seconds(wait))
@@ -228,7 +267,6 @@ class AgentViewModel: ObservableObject {
         onToolUse: { [weak self] id, name, input async -> String in
           guard let self else { return "エラー" }
 
-          // 危険なbashコマンドは確認ダイアログを出す
           if name == "bash", let cmd = input["command"] as? String, self.isDangerous(cmd) {
             let approved = await withCheckedContinuation { continuation in
               Task { @MainActor in
@@ -239,18 +277,13 @@ class AgentViewModel: ObservableObject {
           }
 
           let toolMsg = "[\(name)] 実行中..."
-          await MainActor.run {
-            self.messages.append(Message(role: .tool, content: toolMsg))
-          }
+          await MainActor.run { self.messages.append(Message(role: .tool, content: toolMsg)) }
           let result = await self.tools.execute(name: name, input: input)
-          await MainActor.run {
-            self.messages[self.messages.count - 1].content = "[\(name)] 完了"
-          }
+          await MainActor.run { self.messages[self.messages.count - 1].content = "[\(name)] 完了" }
           return result
         }
       )
 
-      // tool_useがあった場合はhistoryに追加して再度送信
       let toolUseContents = collectedContents.filter { $0.type == "tool_use" }
       let toolResultContents = collectedContents.filter { $0.type == "tool_result" }
 
@@ -259,8 +292,6 @@ class AgentViewModel: ObservableObject {
         if !assistantContent.isEmpty {
           history.append(.assistant([.text(assistantContent)]))
         }
-
-        // テキストのみで終わった場合でも、「まだやっていない」系の発言なら続行を促す
         if looksLikeUnfinishedPlan(assistantContent) && iteration < maxIterations - 1 {
           history.append(.user("説明は不要です。今すぐfile_write・str_replace・bashなどのツールを呼び出してください。まず1つ目のファイルから始めてください。"))
           messages.append(Message(role: .assistant, content: "", isStreaming: true))
@@ -269,16 +300,12 @@ class AgentViewModel: ObservableObject {
           break
         }
       } else {
-        // ツール結果をhistoryに追加して続行（空テキストは除外）
         var assistantContents: [APIContent] = []
         let assistantText = messages[assistantIndex].content
-        if !assistantText.isEmpty {
-          assistantContents.append(.text(assistantText))
-        }
+        if !assistantText.isEmpty { assistantContents.append(.text(assistantText)) }
         assistantContents.append(contentsOf: toolUseContents)
         history.append(.assistant(assistantContents))
 
-        // 複数のtool_resultは1つのuserメッセージにまとめる（API仕様）
         let toolResultAPIContents = toolResultContents.compactMap { result -> APIContent? in
           guard let toolUseId = result.toolUseId else { return nil }
           let raw = result.content?.isEmpty == false ? result.content! : "(empty)"
@@ -289,7 +316,6 @@ class AgentViewModel: ObservableObject {
           history.append(APIMessage(role: "user", content: toolResultAPIContents))
         }
 
-        // 次のAssistant枠を追加
         messages.append(Message(role: .assistant, content: "", isStreaming: true))
         assistantIndex = messages.count - 1
       }
@@ -303,19 +329,15 @@ class AgentViewModel: ObservableObject {
 
   // MARK: - ヘルパー
 
-  /// テキストのみで終わったレスポンスが「計画・宣言だけで未実行」かどうかを判定する
   private func looksLikeUnfinishedPlan(_ text: String) -> Bool {
     guard !text.isEmpty else { return false }
-    // 完了を示すキーワードがあれば「実行済み」と判断
     let completionWords = ["完了しました", "書き換えました", "修正しました", "終わりました", "以上です", "できました"]
     if completionWords.contains(where: { text.contains($0) }) { return false }
-    // 計画・宣言パターン
     let intentionWords = [
       "今すぐ実行", "書き換えます", "実行します", "書き込みます", "修正します",
       "行います", "適用します", "開始します", "進めます"
     ]
     let hasFutureAction = intentionWords.contains { text.contains($0) }
-    // 差分まとめ・計画テキストパターン
     let isPlanOnly = text.contains("差分まとめ") || text.contains("差分:") ||
                      text.contains("以下のファイルを") || text.contains("以下を変更")
     return hasFutureAction || isPlanOnly
@@ -323,7 +345,7 @@ class AgentViewModel: ObservableObject {
 
   // MARK: - 会話リセット
 
-  func clearHistory() {
+  public func clearHistory() {
     messages.removeAll()
     history.removeAll()
     errorMessage = nil
