@@ -53,12 +53,30 @@ public class ClaudeAPIClient {
     ]
     request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-    let (stream, response) = try await URLSession.shared.bytes(for: request)
-    guard let http = response as? HTTPURLResponse else { throw ClaudeError.httpError(0, "") }
+    let (stream, response): (URLSession.AsyncBytes, URLResponse)
+    do {
+      (stream, response) = try await URLSession.shared.bytes(for: request)
+    } catch let urlError as URLError {
+      switch urlError.code {
+      case .notConnectedToInternet, .networkConnectionLost, .cannotConnectToHost:
+        throw ClaudeError.noNetwork
+      case .timedOut:
+        throw ClaudeError.timeout
+      default:
+        throw ClaudeError.networkError(urlError.localizedDescription)
+      }
+    }
+    guard let http = response as? HTTPURLResponse else { throw ClaudeError.networkError("無効なレスポンス") }
     guard (200..<300).contains(http.statusCode) else {
       var body = ""
       for try await line in stream.lines { body += line + "\n" }
-      throw ClaudeError.httpError(http.statusCode, body)
+      switch http.statusCode {
+      case 401: throw ClaudeError.unauthorized
+      case 403: throw ClaudeError.forbidden
+      case 429: throw ClaudeError.httpError(429, body)
+      case 500..<600: throw ClaudeError.serverError(http.statusCode)
+      default: throw ClaudeError.httpError(http.statusCode, body)
+      }
     }
 
     var collectedContents: [APIContent] = []
@@ -137,11 +155,31 @@ public class ClaudeAPIClient {
 public enum ClaudeError: LocalizedError {
   case httpError(Int, String)
   case parseError
+  case unauthorized
+  case forbidden
+  case noNetwork
+  case timeout
+  case networkError(String)
+  case serverError(Int)
 
   public var errorDescription: String? {
     switch self {
-    case .httpError(let code, let body): "Claude API エラー (HTTP \(code))\n\(body)"
-    case .parseError: "レスポンスの解析に失敗しました"
+    case .unauthorized:
+      return "APIキーが無効です。設定を確認してください。"
+    case .forbidden:
+      return "このAPIキーにはアクセス権限がありません。"
+    case .noNetwork:
+      return "ネットワークに接続できません。接続を確認してください。"
+    case .timeout:
+      return "リクエストがタイムアウトしました。再度お試しください。"
+    case .networkError(let msg):
+      return "通信エラー: \(msg)"
+    case .serverError(let code):
+      return "Claude APIサーバーエラー (HTTP \(code))。しばらく待ってから再試行してください。"
+    case .httpError(let code, let body):
+      return "Claude API エラー (HTTP \(code))\n\(body)"
+    case .parseError:
+      return "レスポンスの解析に失敗しました。"
     }
   }
 }

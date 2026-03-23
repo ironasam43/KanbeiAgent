@@ -293,7 +293,9 @@ public class AgentViewModel: ObservableObject {
           let toolMsg = "[\(name)] 実行中..."
           await MainActor.run { self.messages.append(Message(role: .tool, content: toolMsg)) }
           let result = await self.tools.execute(name: name, input: input)
-          await MainActor.run { self.messages[self.messages.count - 1].content = "[\(name)] 完了" }
+          let isError = result.hasPrefix("エラー:") || result.hasPrefix("Error:") || result.contains("error:") || result.contains("No such file")
+          let doneMsg = isError ? "[\(name)] ⚠️ \(result.prefix(120))" : "[\(name)] 完了"
+          await MainActor.run { self.messages[self.messages.count - 1].content = doneMsg }
           return result
         }
       )

@@ -37,7 +37,14 @@ public struct ChatView: View {
 
         // 作業ディレクトリ
         Button {
-          showingDirectoryPicker = true
+          let panel = NSOpenPanel()
+          panel.canChooseFiles = false
+          panel.canChooseDirectories = true
+          panel.allowsMultipleSelection = false
+          panel.prompt = "選択"
+          if panel.runModal() == .OK, let url = panel.url {
+            viewModel.workingDirectory = url
+          }
         } label: {
           Label(viewModel.workingDirectory.lastPathComponent, systemImage: "folder")
             .font(.caption)
@@ -45,7 +52,7 @@ public struct ChatView: View {
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
-        .help(viewModel.workingDirectory.path)
+        .help("Workspace")
 
         Spacer()
 
@@ -89,6 +96,7 @@ public struct ChatView: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(.secondary)
+        .help("設定")
       }
       .padding(.horizontal, 12)
       .padding(.vertical, 8)
@@ -114,11 +122,19 @@ public struct ChatView: View {
                 .id("bashApproval")
               }
               if let error = viewModel.errorMessage {
-                Text(error)
-                  .font(.caption)
-                  .foregroundStyle(.red)
-                  .textSelection(.enabled)
-                  .padding(.horizontal)
+                HStack(alignment: .top, spacing: 8) {
+                  Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+                  Text(error)
+                    .foregroundStyle(.red)
+                    .textSelection(.enabled)
+                }
+                .font(.callout)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red.opacity(0.25), lineWidth: 1))
+                .padding(.horizontal)
               }
             }
             .padding(12)
@@ -238,6 +254,7 @@ public struct ChatView: View {
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
+        .help("ファイル・画像を添付")
         .popover(isPresented: $showingScreenshotPicker, arrowEdge: .bottom) {
           ScreenshotPickerView { windowID in
             showingScreenshotPicker = false
@@ -251,7 +268,7 @@ public struct ChatView: View {
           .focused($inputFocused)
           .padding(8)
           .background(Color(NSColor.textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
-          .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.15), lineWidth: 1))
+          .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red, lineWidth: 1))
 
         // よく使う指示
         QuickPromptsButton { selected in
@@ -269,20 +286,13 @@ public struct ChatView: View {
         .buttonStyle(.plain)
         .disabled(!canSend)
         .keyboardShortcut(.return, modifiers: .command)
+        .help("送信 (⌘Return)")
       }
       .padding(12)
       .background(.bar)
     }
     .sheet(isPresented: $showingSettings) {
       KanbeiSettingsView()
-    }
-    .fileImporter(
-      isPresented: $showingDirectoryPicker,
-      allowedContentTypes: [.folder]
-    ) { result in
-      if case .success(let url) = result {
-        viewModel.workingDirectory = url
-      }
     }
     .fileImporter(
       isPresented: $showingAttachmentPicker,
