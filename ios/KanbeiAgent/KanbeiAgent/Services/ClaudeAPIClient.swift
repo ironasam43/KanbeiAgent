@@ -5,11 +5,13 @@ import Foundation
 class ClaudeAPIClient {
   private let apiKey: String
   private let model: String
+  private let maxTokens: Int
   private let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
 
-  init(apiKey: String, model: String = "claude-sonnet-4-6") {
+  init(apiKey: String, model: String = "claude-sonnet-4-6", maxTokens: Int = 4096) {
     self.apiKey = apiKey
     self.model = model
+    self.maxTokens = maxTokens
   }
 
   // MARK: - ストリーミングリクエスト
@@ -19,22 +21,38 @@ class ClaudeAPIClient {
   func sendMessages(
     _ messages: [APIMessage],
     tools: [ToolDefinition],
+    systemPrompt: String,
     onText: @escaping (String) -> Void,
     onToolUse: @escaping (String, String, [String: Any]) async -> String  // (id, name, input) -> result
-  ) async throws -> [APIContent] {
+  ) async throws -> (contents: [APIContent], usage: APIUsage) {
     var request = URLRequest(url: endpoint)
     request.httpMethod = "POST"
     request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+    request.setValue("prompt-caching-2024-07-31", forHTTPHeaderField: "anthropic-beta")
+
+    // システムプロンプトをキャッシュ対応配列形式に
+    let systemArray: [[String: Any]] = [[
+      "type": "text",
+      "text": systemPrompt,
+      "cache_control": ["type": "ephemeral"]
+    ]]
+
+    // ツール定義の最後にcache_controlを付加
+    var toolsJSON = (try? JSONSerialization.jsonObject(
+      with: JSONEncoder().encode(tools)
+    ) as? [[String: Any]]) ?? []
+    if !toolsJSON.isEmpty {
+      toolsJSON[toolsJSON.count - 1]["cache_control"] = ["type": "ephemeral"]
+    }
 
     let body: [String: Any] = [
       "model": model,
-      "max_tokens": 8096,
+      "max_tokens": maxTokens,
       "stream": true,
-      "tools": try JSONSerialization.jsonObject(
-        with: JSONEncoder().encode(tools)
-      ),
+      "system": systemArray,
+      "tools": toolsJSON,
       "messages": try JSONSerialization.jsonObject(
         with: JSONEncoder().encode(messages)
       )
@@ -54,6 +72,8 @@ class ClaudeAPIClient {
     var currentToolId = ""
     var currentToolName = ""
     var currentToolInputJSON = ""
+    var inputTokens = 0
+    var outputTokens = 0
 
     for try await line in stream.lines {
       guard line.hasPrefix("data: ") else { continue }
@@ -65,6 +85,17 @@ class ClaudeAPIClient {
       else { continue }
 
       switch type {
+      case "message_start":
+        if let message = event["message"] as? [String: Any],
+           let usage = message["usage"] as? [String: Any] {
+          inputTokens += usage["input_tokens"] as? Int ?? 0
+        }
+
+      case "message_delta":
+        if let usage = event["usage"] as? [String: Any] {
+          outputTokens += usage["output_tokens"] as? Int ?? 0
+        }
+
       case "content_block_start":
         if let block = event["content_block"] as? [String: Any],
            let blockType = block["type"] as? String {
@@ -87,7 +118,6 @@ class ClaudeAPIClient {
 
       case "content_block_stop":
         if !currentToolName.isEmpty {
-          // tool_useブロック完了 → 実行
           let input = (try? JSONSerialization.jsonObject(
             with: currentToolInputJSON.data(using: .utf8) ?? Data()
           ) as? [String: Any]) ?? [:]
@@ -118,8 +148,14 @@ class ClaudeAPIClient {
       }
     }
 
-    return collectedContents
+    let usage = APIUsage(inputTokens: inputTokens, outputTokens: outputTokens)
+    return (contents: collectedContents, usage: usage)
   }
+}
+
+struct APIUsage {
+  let inputTokens: Int
+  let outputTokens: Int
 }
 
 enum ClaudeError: LocalizedError {
