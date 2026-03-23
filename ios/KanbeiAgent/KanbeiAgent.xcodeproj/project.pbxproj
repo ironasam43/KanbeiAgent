@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		200F1BBC2F711C1E003BBA46 /* SimpleAgentContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200F1BBB2F711C1E003BBA46 /* SimpleAgentContext.swift */; };
-		200F1BBF2F711CB8003BBA46 /* KanbeiAgentCore in Frameworks */ = {isa = PBXBuildFile; productRef = 200F1BBE2F711CB8003BBA46 /* KanbeiAgentCore */; };
+		2048027D2F7125DF00FD50BF /* KanbeiAgentCore in Frameworks */ = {isa = PBXBuildFile; productRef = 2048027C2F7125DF00FD50BF /* KanbeiAgentCore */; };
 		C3E5FA02B269D78123456F01 /* KanbeiAgentApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C3F8D2E047B56901234ABC /* KanbeiAgentApp.swift */; };
 		D4F60B13C37AE89234567012 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2D4E9F1A158C67012345DEF /* ContentView.swift */; };
 /* End PBXBuildFile section */
@@ -25,7 +25,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				200F1BBF2F711CB8003BBA46 /* KanbeiAgentCore in Frameworks */,
+				2048027D2F7125DF00FD50BF /* KanbeiAgentCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -75,7 +75,7 @@
 			);
 			name = KanbeiAgent;
 			packageProductDependencies = (
-				200F1BBE2F711CB8003BBA46 /* KanbeiAgentCore */,
+				2048027C2F7125DF00FD50BF /* KanbeiAgentCore */,
 			);
 			productName = KanbeiAgent;
 			productReference = 200F1B562F6FB28B003BBA46 /* KanbeiAgent.app */;
@@ -106,7 +106,7 @@
 			mainGroup = 200F1B4D2F6FB28B003BBA46;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				200F1BBD2F711CB8003BBA46 /* XCLocalSwiftPackageReference "../../../KanbeiAgent" */,
+				2048027B2F7125DF00FD50BF /* XCLocalSwiftPackageReference "../../../KanbeiAgent" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 200F1B572F6FB28B003BBA46 /* Products */;
@@ -348,16 +348,15 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		200F1BBD2F711CB8003BBA46 /* XCLocalSwiftPackageReference "../.." */ = {
+		2048027B2F7125DF00FD50BF /* XCLocalSwiftPackageReference "../../../KanbeiAgent" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = ../..;
+			relativePath = ../../../KanbeiAgent;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		200F1BBE2F711CB8003BBA46 /* KanbeiAgentCore */ = {
+		2048027C2F7125DF00FD50BF /* KanbeiAgentCore */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 200F1BBD2F711CB8003BBA46 /* XCLocalSwiftPackageReference "../.." */;
 			productName = KanbeiAgentCore;
 		};
 /* End XCSwiftPackageProductDependency section */
