@@ -1,11 +1,16 @@
+//
+//  KanbeiAgentContext.swift
+//  KanbeiAgentCore
+//
+
 import Foundation
 
-/// KanbeiAgentを利用する際に必要なコンテキスト情報を提供するプロトコル
+/// Protocol providing context information needed when using KanbeiAgent
 public protocol KanbeiAgentContext {
-  /// エージェントが操作する作業ディレクトリ
+  /// Working directory where the agent operates
   var workingDirectoryURL: URL { get }
-  /// 会話履歴の保存ファイル名（拡張子なし）例: "history", "issue-123"
+  /// File name for saving conversation history (without extension) e.g.: "history", "issue-123"
   var historyFileName: String { get }
-  /// システムプロンプトへの追加情報（Issue情報など）
+  /// Additional information for the system prompt (such as issue information)
   var systemPromptAddendum: String { get }
 }

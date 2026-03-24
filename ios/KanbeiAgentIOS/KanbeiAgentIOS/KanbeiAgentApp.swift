@@ -1,6 +1,6 @@
 //
 //  KanbeiAgentApp.swift
-//  KanbeiAgent
+//  KanbeiAgentIOS
 //
 
 import SwiftUI
@@ -13,7 +13,5 @@ struct KanbeiAgentApp: App {
       ContentView()
         .environmentObject(TokenUsageStore.shared)
     }
-    .defaultSize(width: 800, height: 600)
-    .windowResizability(.contentMinSize)
   }
 }

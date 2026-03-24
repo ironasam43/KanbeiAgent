@@ -1,6 +1,11 @@
+//
+//  AgentTools.swift
+//  KanbeiAgentCore
+//
+
 import Foundation
 
-// MARK: - ツール実行エンジン
+// MARK: - Tool execution engine
 
 public struct AgentTools {
   public var workingDirectory: URL
@@ -9,97 +14,102 @@ public struct AgentTools {
     self.workingDirectory = workingDirectory
   }
 
-  // MARK: - ツール定義一覧（Claude APIに渡す）
+  // MARK: - Tool definition list (to pass to Claude API)
 
-  public static let definitions: [ToolDefinition] = [
-    ToolDefinition(
-      name: "file_read",
-      description: "指定パスのファイルを読み込む。offset/limitで行範囲を指定できる（大きなファイルは必要部分だけ読むこと）",
-      inputSchema: .init(
-        type: "object",
-        properties: [
-          "path": .init(type: "string", description: "読み込むファイルの絶対パスまたは作業ディレクトリからの相対パス"),
-          "offset": .init(type: "integer", description: "読み始める行番号（1始まり）。省略時は先頭から"),
-          "limit": .init(type: "integer", description: "読む行数の上限。省略時は全行")
-        ],
-        required: ["path"]
-      )
-    ),
-    ToolDefinition(
-      name: "str_replace",
-      description: "ファイル内の特定テキストを別のテキストに置換する。ファイル全体の書き直しより効率的。old_strは必ずファイル内に一意に存在する文字列を指定すること。",
-      inputSchema: .init(
-        type: "object",
-        properties: [
-          "path": .init(type: "string", description: "編集するファイルのパス"),
-          "old_str": .init(type: "string", description: "置換前のテキスト（ファイル内で一意に存在する文字列）"),
-          "new_str": .init(type: "string", description: "置換後のテキスト")
-        ],
-        required: ["path", "old_str", "new_str"]
-      )
-    ),
-    ToolDefinition(
-      name: "file_write",
-      description: "指定パスにファイルを書き込む（上書き）。部分編集はstr_replaceを使うこと。",
-      inputSchema: .init(
-        type: "object",
-        properties: [
-          "path": .init(type: "string", description: "書き込むファイルのパス"),
-          "content": .init(type: "string", description: "書き込む内容")
-        ],
-        required: ["path", "content"]
-      )
-    ),
-    ToolDefinition(
+  public static var definitions: [ToolDefinition] {
+    var defs: [ToolDefinition] = [
+      ToolDefinition(
+        name: "file_read",
+        description: "Read file at specified path. Can specify line range with offset/limit (for large files, read only the necessary part)",
+        inputSchema: .init(
+          type: "object",
+          properties: [
+            "path": .init(type: "string", description: "Absolute path or relative path from working directory of file to read"),
+            "offset": .init(type: "integer", description: "Line number to start reading (1-indexed). Defaults to start from beginning"),
+            "limit": .init(type: "integer", description: "Maximum number of lines to read. Defaults to all lines")
+          ],
+          required: ["path"]
+        )
+      ),
+      ToolDefinition(
+        name: "str_replace",
+        description: "Replace specific text in file with different text. More efficient than rewriting entire file. old_str must be a string that uniquely exists in the file.",
+        inputSchema: .init(
+          type: "object",
+          properties: [
+            "path": .init(type: "string", description: "Path of file to edit"),
+            "old_str": .init(type: "string", description: "Text before replacement (string that uniquely exists in file)"),
+            "new_str": .init(type: "string", description: "Text after replacement")
+          ],
+          required: ["path", "old_str", "new_str"]
+        )
+      ),
+      ToolDefinition(
+        name: "file_write",
+        description: "Write file to specified path (overwrite). Use str_replace for partial edits.",
+        inputSchema: .init(
+          type: "object",
+          properties: [
+            "path": .init(type: "string", description: "Path of file to write"),
+            "content": .init(type: "string", description: "Content to write")
+          ],
+          required: ["path", "content"]
+        )
+      ),
+      ToolDefinition(
+        name: "list_files",
+        description: "Get list of files in directory",
+        inputSchema: .init(
+          type: "object",
+          properties: [
+            "path": .init(type: "string", description: "Path of directory to list. Defaults to working directory.")
+          ],
+          required: []
+        )
+      ),
+      ToolDefinition(
+        name: "grep",
+        description: "Search file content with regular expression. Returns matched lines with file path and line number.",
+        inputSchema: .init(
+          type: "object",
+          properties: [
+            "pattern": .init(type: "string", description: "Regular expression pattern to search"),
+            "path": .init(type: "string", description: "Directory or file path to search. Defaults to working directory."),
+            "glob": .init(type: "string", description: "Glob pattern to narrow target files (e.g.: *.swift). Defaults to all files.")
+          ],
+          required: ["pattern"]
+        )
+      ),
+      ToolDefinition(
+        name: "glob",
+        description: "Search file paths with glob pattern",
+        inputSchema: .init(
+          type: "object",
+          properties: [
+            "pattern": .init(type: "string", description: "Glob pattern (e.g.: **/*.swift, src/**/*.ts)"),
+            "path": .init(type: "string", description: "Base directory for search. Defaults to working directory.")
+          ],
+          required: ["pattern"]
+        )
+      ),
+    ]
+    #if os(macOS)
+    defs.append(ToolDefinition(
       name: "bash",
-      description: "シェルコマンドを実行する。作業ディレクトリで実行される。",
+      description: "Execute shell command. Runs in working directory.",
       inputSchema: .init(
         type: "object",
         properties: [
-          "command": .init(type: "string", description: "実行するシェルコマンド")
+          "command": .init(type: "string", description: "Shell command to execute")
         ],
         required: ["command"]
       )
-    ),
-    ToolDefinition(
-      name: "list_files",
-      description: "ディレクトリ内のファイル一覧を取得する",
-      inputSchema: .init(
-        type: "object",
-        properties: [
-          "path": .init(type: "string", description: "一覧を取得するディレクトリのパス。省略時は作業ディレクトリ。")
-        ],
-        required: []
-      )
-    ),
-    ToolDefinition(
-      name: "grep",
-      description: "ファイル内容を正規表現で検索する。マッチした行をファイルパスと行番号付きで返す。",
-      inputSchema: .init(
-        type: "object",
-        properties: [
-          "pattern": .init(type: "string", description: "検索する正規表現パターン"),
-          "path": .init(type: "string", description: "検索対象のディレクトリまたはファイルパス。省略時は作業ディレクトリ。"),
-          "glob": .init(type: "string", description: "対象ファイルを絞るglobパターン（例: *.swift）。省略時は全ファイル。")
-        ],
-        required: ["pattern"]
-      )
-    ),
-    ToolDefinition(
-      name: "glob",
-      description: "globパターンでファイルパスを検索する",
-      inputSchema: .init(
-        type: "object",
-        properties: [
-          "pattern": .init(type: "string", description: "globパターン（例: **/*.swift, src/**/*.ts）"),
-          "path": .init(type: "string", description: "検索のベースディレクトリ。省略時は作業ディレクトリ。")
-        ],
-        required: ["pattern"]
-      )
-    ),
-  ]
+    ))
+    #endif
+    return defs
+  }
 
-  // MARK: - ツール実行
+  // MARK: - Tool execution
 
   public func execute(name: String, input: [String: Any]) async -> String {
     switch name {
@@ -109,8 +119,10 @@ public struct AgentTools {
       return strReplace(input: input)
     case "file_write":
       return fileWrite(input: input)
+    #if os(macOS)
     case "bash":
       return await bash(input: input)
+    #endif
     case "list_files":
       return listFiles(input: input)
     case "grep":
@@ -118,14 +130,14 @@ public struct AgentTools {
     case "glob":
       return glob(input: input)
     default:
-      return "エラー: 未知のツール '\(name)'"
+      return "Error: Unknown tool '\(name)'"
     }
   }
 
-  // MARK: - 各ツール実装
+  // MARK: - Individual tool implementations
 
   private func fileRead(input: [String: Any]) -> String {
-    guard let path = input["path"] as? String else { return "エラー: path が必要です" }
+    guard let path = input["path"] as? String else { return "Error: path is required" }
     let url = resolvedURL(path)
     do {
       let content = try String(contentsOf: url, encoding: .utf8)
@@ -137,7 +149,7 @@ public struct AgentTools {
       let numbered = sliced.enumerated().map { "\(startLine + $0.offset): \($0.element)" }
       return numbered.joined(separator: "\n")
     } catch {
-      return "エラー: \(error.localizedDescription)"
+      return "Error: \(error.localizedDescription)"
     }
   }
 
@@ -145,26 +157,26 @@ public struct AgentTools {
     guard let path = input["path"] as? String,
           let oldStr = input["old_str"] as? String,
           let newStr = input["new_str"] as? String else {
-      return "エラー: path, old_str, new_str が必要です"
+      return "Error: path, old_str, new_str are required"
     }
     let url = resolvedURL(path)
     do {
       let content = try String(contentsOf: url, encoding: .utf8)
       let count = content.components(separatedBy: oldStr).count - 1
-      if count == 0 { return "エラー: old_str がファイル内に見つかりません" }
-      if count > 1 { return "エラー: old_str がファイル内に\(count)箇所あります。一意に特定できる文字列を指定してください" }
+      if count == 0 { return "Error: old_str not found in file" }
+      if count > 1 { return "Error: old_str found in \(count) places in file. Please specify a uniquely identifiable string" }
       let replaced = content.replacingOccurrences(of: oldStr, with: newStr)
       try replaced.write(to: url, atomically: true, encoding: .utf8)
-      return "置換完了: \(url.lastPathComponent)"
+      return "Replacement complete: \(url.lastPathComponent)"
     } catch {
-      return "エラー: \(error.localizedDescription)"
+      return "Error: \(error.localizedDescription)"
     }
   }
 
   private func fileWrite(input: [String: Any]) -> String {
     guard let path = input["path"] as? String,
           let content = input["content"] as? String else {
-      return "エラー: path と content が必要です"
+      return "Error: path and content are required"
     }
     let url = resolvedURL(path)
     do {
@@ -173,14 +185,15 @@ public struct AgentTools {
         withIntermediateDirectories: true
       )
       try content.write(to: url, atomically: true, encoding: .utf8)
-      return "書き込み完了: \(url.path)"
+      return "Write complete: \(url.path)"
     } catch {
-      return "エラー: \(error.localizedDescription)"
+      return "Error: \(error.localizedDescription)"
     }
   }
 
+  #if os(macOS)
   private func bash(input: [String: Any]) async -> String {
-    guard let command = input["command"] as? String else { return "エラー: command が必要です" }
+    guard let command = input["command"] as? String else { return "Error: command is required" }
     let result = await withCheckedContinuation { (continuation: CheckedContinuation<String, Never>) in
       let process = Process()
       process.executableURL = URL(fileURLWithPath: "/bin/zsh")
@@ -212,7 +225,7 @@ public struct AgentTools {
         let out = String(data: outPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
         let err = String(data: errPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
         let output = [out, err].filter { !$0.isEmpty }.joined(separator: "\n")
-        tryResume(output.isEmpty ? "（出力なし）" : output)
+        tryResume(output.isEmpty ? "(No output)" : output)
       }
 
       do {
@@ -220,10 +233,10 @@ public struct AgentTools {
         DispatchQueue.global().asyncAfter(deadline: .now() + 30) {
           guard process.isRunning else { return }
           process.terminate()
-          tryResume("エラー: タイムアウト（30秒）でコマンドを強制終了しました")
+          tryResume("Error: Command forcefully terminated due to timeout (30 seconds)")
         }
       } catch {
-        tryResume("エラー: \(error.localizedDescription)")
+        tryResume("Error: \(error.localizedDescription)")
       }
     }
     appendBashLog(command: command, result: result)
@@ -244,6 +257,7 @@ public struct AgentTools {
       try? entry.data(using: .utf8)?.write(to: logURL)
     }
   }
+  #endif
 
   private func listFiles(input: [String: Any]) -> String {
     let path = input["path"] as? String
@@ -257,18 +271,18 @@ public struct AgentTools {
         return isDir ? "\(item.lastPathComponent)/" : item.lastPathComponent
       }.sorted().joined(separator: "\n")
     } catch {
-      return "エラー: \(error.localizedDescription)"
+      return "Error: \(error.localizedDescription)"
     }
   }
 
   private func grep(input: [String: Any]) -> String {
-    guard let pattern = input["pattern"] as? String else { return "エラー: pattern が必要です" }
+    guard let pattern = input["pattern"] as? String else { return "Error: pattern is required" }
     let basePath = input["path"] as? String
     let baseURL = basePath.map { resolvedURL($0) } ?? workingDirectory
     let globPattern = input["glob"] as? String
 
     guard let regex = try? NSRegularExpression(pattern: pattern) else {
-      return "エラー: 無効な正規表現パターン"
+      return "Error: Invalid regular expression pattern"
     }
 
     var results: [String] = []
@@ -286,11 +300,11 @@ public struct AgentTools {
       }
     }
 
-    return results.isEmpty ? "（マッチなし）" : results.joined(separator: "\n")
+    return results.isEmpty ? "(No matches)" : results.joined(separator: "\n")
   }
 
   private func glob(input: [String: Any]) -> String {
-    guard let pattern = input["pattern"] as? String else { return "エラー: pattern が必要です" }
+    guard let pattern = input["pattern"] as? String else { return "Error: pattern is required" }
     let basePath = input["path"] as? String
     let baseURL = basePath.map { resolvedURL($0) } ?? workingDirectory
 
@@ -299,7 +313,7 @@ public struct AgentTools {
       url.path.replacingOccurrences(of: workingDirectory.path + "/", with: "")
     }.sorted()
 
-    return paths.isEmpty ? "（マッチなし）" : paths.joined(separator: "\n")
+    return paths.isEmpty ? "(No matches)" : paths.joined(separator: "\n")
   }
 
   private func allFiles(in directory: URL, matching globPattern: String?) -> [URL] {
@@ -328,7 +342,7 @@ public struct AgentTools {
     return files
   }
 
-  // MARK: - ヘルパー
+  // MARK: - Helper
 
   private func resolvedURL(_ path: String) -> URL {
     if path.hasPrefix("/") {

@@ -1,6 +1,13 @@
+//
+//  ChatView.swift
+//  KanbeiAgentCore
+//
+
 import SwiftUI
 import UniformTypeIdentifiers
+#if os(macOS)
 import AppKit
+#endif
 
 public struct ChatView: View {
   @StateObject private var viewModel: AgentViewModel
@@ -10,286 +17,45 @@ public struct ChatView: View {
     _viewModel = StateObject(wrappedValue: AgentViewModel(context: context))
   }
   @State private var showingSettings = false
-  @State private var showingDirectoryPicker = false
   @State private var showingAttachmentPicker = false
-  @State private var showingScreenshotPicker = false
   @State private var attachedFiles: [(name: String, content: String)] = []
+  #if os(macOS)
+  @State private var showingDirectoryPicker = false
+  @State private var showingScreenshotPicker = false
   @State private var attachedImages: [(name: String, base64: String, mediaType: String, nsImage: NSImage)] = []
+  #else
+  @State private var attachedImages: [(name: String, base64: String, mediaType: String, uiImage: UIImage)] = []
+  #endif
   @State private var exportDocument: ChatExportDocument?
   @State private var showingExporter = false
   @FocusState private var inputFocused: Bool
 
   public var body: some View {
     VStack(spacing: 0) {
-      // ツールバー
-      HStack {
-        // タイトル
-        VStack(alignment: .leading, spacing: 1) {
-          Text("Chat")
-            .font(.headline)
-            .fontWeight(.bold)
-          Text("Powered by Claude")
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-        }
-
-        Spacer()
-
-        // 作業ディレクトリ
-        Button {
-          let panel = NSOpenPanel()
-          panel.canChooseFiles = false
-          panel.canChooseDirectories = true
-          panel.allowsMultipleSelection = false
-          panel.prompt = "選択"
-          if panel.runModal() == .OK, let url = panel.url {
-            viewModel.workingDirectory = url
-          }
-        } label: {
-          Label(viewModel.workingDirectory.lastPathComponent, systemImage: "folder")
-            .font(.caption)
-            .lineLimit(1)
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
-        .help("Workspace")
-
-        Spacer()
-
-        if viewModel.isRunning {
-          Button {
-            viewModel.cancelGeneration()
-          } label: {
-            Label("停止", systemImage: "stop.circle.fill")
-              .foregroundStyle(.red)
-          }
-          .buttonStyle(.bordered)
-          .controlSize(.small)
-          .help("生成を停止")
-        }
-
-        Button {
-          exportDocument = ChatExportDocument(messages: viewModel.messages)
-          showingExporter = true
-        } label: {
-          Image(systemName: "square.and.arrow.up")
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
-        .help("会話をエクスポート")
-        .disabled(viewModel.messages.isEmpty)
-
-        Button {
-          viewModel.clearHistory()
-        } label: {
-          Image(systemName: "trash")
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
-        .help("会話をクリア")
-        .disabled(viewModel.messages.isEmpty)
-
-        Button {
-          showingSettings = true
-        } label: {
-          Image(systemName: "gear")
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
-        .help("設定")
-      }
-      .padding(.horizontal, 12)
-      .padding(.vertical, 8)
-      .background(.bar)
+      toolbarView
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.bar)
 
       Divider().overlay(Color.primary.opacity(0.3))
 
-      // メッセージリスト
-      ScrollViewReader { proxy in
-        ZStack {
-          Color(red: 0.93, green: 0.93, blue: 0.95)
-          ScrollView {
-            LazyVStack(alignment: .leading, spacing: 12) {
-              ForEach(viewModel.messages) { message in
-                MessageRow(message: message)
-                  .id(message.id)
-              }
-              // インライン sh 実行確認カード
-              if let pending = viewModel.pendingBashCommand {
-                BashApprovalCard(command: pending.command) { approved in
-                  viewModel.confirmBash(approved: approved)
-                }
-                .id("bashApproval")
-              }
-              if let error = viewModel.errorMessage {
-                HStack(alignment: .top, spacing: 8) {
-                  Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.red)
-                  Text(error)
-                    .foregroundStyle(.red)
-                    .textSelection(.enabled)
-                }
-                .font(.callout)
-                .padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red.opacity(0.25), lineWidth: 1))
-                .padding(.horizontal)
-              }
-            }
-            .padding(12)
-          }
-        }
-        .onChange(of: viewModel.messages.count) {
-          if let last = viewModel.messages.last {
-            withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
-          }
-        }
-        .onChange(of: viewModel.pendingBashCommand == nil) {
-          if viewModel.pendingBashCommand != nil {
-            withAnimation { proxy.scrollTo("bashApproval", anchor: .bottom) }
-            NSSound.beep()
-          }
-        }
-        .onChange(of: viewModel.scrollTrigger) {
-          if let last = viewModel.messages.last {
-            withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
-          }
-        }
-        .onChange(of: viewModel.isRunning) {
-          if !viewModel.isRunning {
-            NSSound.beep()
-          }
-        }
-      }
+      messageListView
 
       if viewModel.isRunning {
         Divider()
         HStack(spacing: 8) {
-          ProgressView()
-            .controlSize(.small)
-          Text("実行中…")
-            .font(.caption)
-            .foregroundStyle(.secondary)
+          ProgressView().controlSize(.small)
+          Text("chat.running", bundle: .localizedModule)
+            .font(.caption).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 12).padding(.vertical, 6)
         .background(.bar)
       }
 
       Divider()
 
-      // 添付バー（テキストファイル＋画像）
-      if !attachedFiles.isEmpty || !attachedImages.isEmpty {
-        ScrollView(.horizontal, showsIndicators: false) {
-          HStack(spacing: 6) {
-            // テキストファイルチップ
-            ForEach(attachedFiles.indices, id: \.self) { idx in
-              HStack(spacing: 4) {
-                Image(systemName: "doc.text")
-                  .font(.caption2)
-                Text(attachedFiles[idx].name)
-                  .font(.caption2)
-                  .lineLimit(1)
-                Button {
-                  attachedFiles.remove(at: idx)
-                } label: {
-                  Image(systemName: "xmark")
-                    .font(.caption2)
-                }
-                .buttonStyle(.plain)
-              }
-              .padding(.horizontal, 8)
-              .padding(.vertical, 4)
-              .background(.quaternary, in: Capsule())
-            }
-            // 画像サムネイル
-            ForEach(attachedImages.indices, id: \.self) { idx in
-              ZStack(alignment: .topTrailing) {
-                Image(nsImage: attachedImages[idx].nsImage)
-                  .resizable()
-                  .scaledToFill()
-                  .frame(width: 48, height: 48)
-                  .clipShape(RoundedRectangle(cornerRadius: 6))
-                Button {
-                  attachedImages.remove(at: idx)
-                } label: {
-                  Image(systemName: "xmark.circle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.white)
-                    .background(Color.black.opacity(0.5), in: Circle())
-                }
-                .buttonStyle(.plain)
-                .offset(x: 4, y: -4)
-              }
-            }
-          }
-          .padding(.horizontal, 12)
-          .padding(.top, 6)
-        }
-      }
-
-      // 入力エリア
-      HStack(alignment: .center, spacing: 6) {
-        // ＋メニュー（ファイル添付 / スクリーンショット）
-        Menu {
-          Button {
-            showingAttachmentPicker = true
-          } label: {
-            Label("ファイル・画像を添付", systemImage: "paperclip")
-          }
-
-          Divider()
-
-          Button {
-            showingScreenshotPicker = true
-          } label: {
-            Label("スクリーンショットを送信", systemImage: "camera.viewfinder")
-          }
-        } label: {
-          Image(systemName: "plus.circle.fill")
-            .font(.title2)
-            .foregroundStyle(Color.secondary)
-        }
-        .menuStyle(.borderlessButton)
-        .fixedSize()
-        .help("ファイル・画像を添付")
-        .popover(isPresented: $showingScreenshotPicker, arrowEdge: .bottom) {
-          ScreenshotPickerView { windowID in
-            showingScreenshotPicker = false
-            captureAndAttach(windowID: windowID)
-          }
-        }
-
-        TextField("メッセージを入力…", text: $input, axis: .vertical)
-          .textFieldStyle(.plain)
-          .lineLimit(1...8)
-          .focused($inputFocused)
-          .padding(8)
-          .background(Color(NSColor.textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
-          .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red, lineWidth: 1))
-
-        // よく使う指示
-        QuickPromptsButton { selected in
-          input = input.isEmpty ? selected : input + "\n" + selected
-          inputFocused = true
-        }
-
-        Button {
-          sendMessage()
-        } label: {
-          Image(systemName: "arrow.up.circle.fill")
-            .font(.title2)
-            .foregroundStyle(canSend ? Color.accentColor : Color.secondary)
-        }
-        .buttonStyle(.plain)
-        .disabled(!canSend)
-        .keyboardShortcut(.return, modifiers: .command)
-        .help("送信 (⌘Return)")
-      }
-      .padding(12)
-      .background(.bar)
+      inputAreaView
     }
     .sheet(isPresented: $showingSettings) {
       KanbeiSettingsView()
@@ -309,40 +75,42 @@ public struct ChatView: View {
           let ext = url.pathExtension.lowercased()
           let imageExts = ["png", "jpg", "jpeg", "gif", "webp", "bmp", "tiff", "tif", "heic"]
           if imageExts.contains(ext) {
-            // 画像として処理
+            // Process as image
+            let mediaType: String
+            switch ext {
+            case "jpg", "jpeg": mediaType = "image/jpeg"
+            case "gif":         mediaType = "image/gif"
+            case "webp":        mediaType = "image/webp"
+            default:            mediaType = "image/png"
+            }
+            #if os(macOS)
             if let data = try? Data(contentsOf: url),
                let nsImage = NSImage(data: data) {
-              let mediaType: String
-              switch ext {
-              case "jpg", "jpeg": mediaType = "image/jpeg"
-              case "gif":         mediaType = "image/gif"
-              case "webp":        mediaType = "image/webp"
-              default:            mediaType = "image/png"
-              }
-              // 長辺1568px以下にリサイズしてbase64化（Claude推奨サイズ）
               let resized = nsImage.resizedIfNeeded(maxDimension: 1568)
               let targetType: NSBitmapImageRep.FileType = (mediaType == "image/jpeg") ? .jpeg : .png
               if let rep = resized.representations.first as? NSBitmapImageRep,
                  let imgData = rep.representation(using: targetType, properties: [:]) {
-                attachedImages.append((
-                  name: url.lastPathComponent,
-                  base64: imgData.base64EncodedString(),
-                  mediaType: mediaType,
-                  nsImage: resized
-                ))
+                attachedImages.append((name: url.lastPathComponent, base64: imgData.base64EncodedString(), mediaType: mediaType, nsImage: resized))
               } else if let tiff = resized.tiffRepresentation,
                         let bmpRep = NSBitmapImageRep(data: tiff),
                         let imgData = bmpRep.representation(using: targetType, properties: [:]) {
-                attachedImages.append((
-                  name: url.lastPathComponent,
-                  base64: imgData.base64EncodedString(),
-                  mediaType: mediaType,
-                  nsImage: resized
-                ))
+                attachedImages.append((name: url.lastPathComponent, base64: imgData.base64EncodedString(), mediaType: mediaType, nsImage: resized))
               }
             }
+            #else
+            if let data = try? Data(contentsOf: url),
+               let uiImage = UIImage(data: data) {
+              let resized = uiImage.resizedIfNeeded(maxDimension: 1568)
+              let imgData = (mediaType == "image/jpeg")
+                ? resized.jpegData(compressionQuality: 0.9)
+                : resized.pngData()
+              if let imgData {
+                attachedImages.append((name: url.lastPathComponent, base64: imgData.base64EncodedString(), mediaType: mediaType, uiImage: resized))
+              }
+            }
+            #endif
           } else {
-            // テキストファイルとして処理
+            // Process as text file
             if let text = try? String(contentsOf: url, encoding: .utf8) {
               attachedFiles.append((name: url.lastPathComponent, content: text))
             } else if let text = try? String(contentsOf: url, encoding: .shiftJIS) {
@@ -362,7 +130,7 @@ public struct ChatView: View {
     }
     .onAppear {
       viewModel.loadHistory()
-      // loadHistory 後に末尾までスクロール
+      // Scroll to end after loadHistory
       DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
         viewModel.scrollTrigger += 1
       }
@@ -370,8 +138,9 @@ public struct ChatView: View {
     }
   }
 
-  // MARK: - スクリーンショット
+  // MARK: - Screenshot (macOS only)
 
+  #if os(macOS)
   struct WindowInfo {
     let windowID: Int
     let title: String
@@ -418,7 +187,7 @@ public struct ChatView: View {
     else { return }
     try? FileManager.default.removeItem(at: tmp)
 
-    // 長辺 1568px にリサイズして添付
+    // Resize to 1568px on longest side before attaching
     let resized = nsImage.resizedIfNeeded(maxDimension: 1568)
     guard let tiff = resized.tiffRepresentation,
           let rep  = NSBitmapImageRep(data: tiff),
@@ -431,6 +200,224 @@ public struct ChatView: View {
       mediaType: "image/png",
       nsImage: resized
     ))
+  }
+  #endif
+
+  @ViewBuilder
+  private var messageListView: some View {
+    ScrollViewReader { proxy in
+      ZStack {
+        Color(red: 0.93, green: 0.93, blue: 0.95)
+        ScrollView {
+          LazyVStack(alignment: .leading, spacing: 12) {
+            ForEach(viewModel.messages) { message in
+              MessageRow(message: message)
+                .id(message.id)
+            }
+            #if os(macOS)
+            if let pending = viewModel.pendingBashCommand {
+              BashApprovalCard(command: pending.command) { approved in
+                viewModel.confirmBash(approved: approved)
+              }
+              .id("bashApproval")
+            }
+            #endif
+            if let error = viewModel.errorMessage {
+              HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                  .foregroundStyle(.red)
+                Text(error)
+                  .foregroundStyle(.red)
+                  .textSelection(.enabled)
+              }
+              .font(.callout)
+              .padding(12)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+              .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red.opacity(0.25), lineWidth: 1))
+              .padding(.horizontal)
+            }
+          }
+          .padding(12)
+        }
+      }
+      .onChange(of: viewModel.messages.count) {
+        if let last = viewModel.messages.last {
+          withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
+        }
+      }
+      #if os(macOS)
+      .onChange(of: viewModel.pendingBashCommand == nil) {
+        if viewModel.pendingBashCommand != nil {
+          withAnimation { proxy.scrollTo("bashApproval", anchor: .bottom) }
+          NSSound.beep()
+        }
+      }
+      .onChange(of: viewModel.isRunning) {
+        if !viewModel.isRunning { NSSound.beep() }
+      }
+      #endif
+      .onChange(of: viewModel.scrollTrigger) {
+        if let last = viewModel.messages.last {
+          withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
+        }
+      }
+    }
+  }
+
+  @ViewBuilder
+  private var inputAreaView: some View {
+    VStack(spacing: 0) {
+      if !attachedFiles.isEmpty || !attachedImages.isEmpty {
+        ScrollView(.horizontal, showsIndicators: false) {
+          HStack(spacing: 6) {
+            ForEach(attachedFiles.indices, id: \.self) { idx in
+              HStack(spacing: 4) {
+                Image(systemName: "doc.text").font(.caption2)
+                Text(attachedFiles[idx].name).font(.caption2).lineLimit(1)
+                Button { attachedFiles.remove(at: idx) } label: {
+                  Image(systemName: "xmark").font(.caption2)
+                }
+                .buttonStyle(.plain)
+              }
+              .padding(.horizontal, 8).padding(.vertical, 4)
+              .background(.quaternary, in: Capsule())
+            }
+            ForEach(attachedImages.indices, id: \.self) { idx in
+              ZStack(alignment: .topTrailing) {
+                #if os(macOS)
+                Image(nsImage: attachedImages[idx].nsImage)
+                  .resizable().scaledToFill()
+                  .frame(width: 48, height: 48)
+                  .clipShape(RoundedRectangle(cornerRadius: 6))
+                #else
+                Image(uiImage: attachedImages[idx].uiImage)
+                  .resizable().scaledToFill()
+                  .frame(width: 48, height: 48)
+                  .clipShape(RoundedRectangle(cornerRadius: 6))
+                #endif
+                Button { attachedImages.remove(at: idx) } label: {
+                  Image(systemName: "xmark.circle.fill")
+                    .font(.caption).foregroundStyle(.white)
+                    .background(Color.black.opacity(0.5), in: Circle())
+                }
+                .buttonStyle(.plain).offset(x: 4, y: -4)
+              }
+            }
+          }
+          .padding(.horizontal, 12).padding(.top, 6)
+        }
+      }
+
+      HStack(alignment: .center, spacing: 6) {
+        Menu {
+          Button {
+            showingAttachmentPicker = true
+          } label: {
+            Label(String(localized: "chat.attach.file", bundle: .localizedModule), systemImage: "paperclip")
+          }
+          #if os(macOS)
+          Divider()
+          Button {
+            showingScreenshotPicker = true
+          } label: {
+            Label(String(localized: "chat.attach.screenshot", bundle: .localizedModule), systemImage: "camera.viewfinder")
+          }
+          #endif
+        } label: {
+          Image(systemName: "plus.circle.fill")
+            .font(.title2).foregroundStyle(Color.secondary)
+        }
+        .menuStyle(.borderlessButton).fixedSize()
+        .help(String(localized: "chat.attach.help", bundle: .localizedModule))
+        #if os(macOS)
+        .popover(isPresented: $showingScreenshotPicker, arrowEdge: .bottom) {
+          ScreenshotPickerView { windowID in
+            showingScreenshotPicker = false
+            captureAndAttach(windowID: windowID)
+          }
+        }
+        #endif
+
+        TextField(String(localized: "chat.input.placeholder", bundle: .localizedModule), text: $input, axis: .vertical)
+          .textFieldStyle(.plain)
+          .lineLimit(1...8)
+          .focused($inputFocused)
+          .padding(8)
+          .background(Color.textInputBackground, in: RoundedRectangle(cornerRadius: 8))
+          .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red.opacity(0.6), lineWidth: 1))
+
+        QuickPromptsButton { selected in
+          input = input.isEmpty ? selected : input + "\n" + selected
+          inputFocused = true
+        }
+
+        if viewModel.isRunning {
+          Button { viewModel.cancelGeneration() } label: {
+            Image(systemName: "stop.circle.fill")
+              .font(.title2)
+              .foregroundStyle(Color.red)
+          }
+          .buttonStyle(.plain)
+          .help(String(localized: "chat.stop.help", bundle: .localizedModule))
+        } else {
+          Button { sendMessage() } label: {
+            Image(systemName: "arrow.up.circle.fill")
+              .font(.title2)
+              .foregroundStyle(canSend ? Color.accentColor : Color.secondary)
+          }
+          .buttonStyle(.plain).disabled(!canSend)
+          .keyboardShortcut(.return, modifiers: .command)
+          .help(String(localized: "chat.send.help", bundle: .localizedModule))
+        }
+      }
+      .padding(12).background(.bar)
+    }
+  }
+
+  @ViewBuilder
+  private var toolbarView: some View {
+    HStack {
+      VStack(alignment: .leading, spacing: 1) {
+        Text("chat.title", bundle: .localizedModule)
+          .font(.headline).fontWeight(.bold)
+        Text("chat.subtitle", bundle: .localizedModule)
+          .font(.caption2).foregroundStyle(.secondary)
+      }
+      Spacer()
+      #if os(macOS)
+      Button {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = String(localized: "chat.workspace.prompt", bundle: .localizedModule)
+        if panel.runModal() == .OK, let url = panel.url {
+          viewModel.workingDirectory = url
+        }
+      } label: {
+        Label(viewModel.workingDirectory.lastPathComponent, systemImage: "folder")
+          .font(.caption).lineLimit(1)
+      }
+      .buttonStyle(.bordered).controlSize(.small)
+      .help(String(localized: "chat.workspace.help", bundle: .localizedModule))
+      #endif
+      Spacer()
+      Button {
+        exportDocument = ChatExportDocument(messages: viewModel.messages)
+        showingExporter = true
+      } label: { Image(systemName: "square.and.arrow.up") }
+        .buttonStyle(.plain).foregroundStyle(.secondary)
+        .help(String(localized: "chat.export.help", bundle: .localizedModule))
+        .disabled(viewModel.messages.isEmpty)
+      Button { viewModel.clearHistory() } label: { Image(systemName: "trash") }
+        .buttonStyle(.plain).foregroundStyle(.secondary)
+        .help(String(localized: "chat.clear.help", bundle: .localizedModule))
+        .disabled(viewModel.messages.isEmpty)
+      Button { showingSettings = true } label: { Image(systemName: "gear") }
+        .buttonStyle(.plain).foregroundStyle(.secondary)
+        .help(String(localized: "chat.settings.help", bundle: .localizedModule))
+    }
   }
 
   private var canSend: Bool {
@@ -447,10 +434,11 @@ public struct ChatView: View {
     attachedFiles = []
     attachedImages = []
 
-    // テキストファイルをメッセージ末尾に追記
+    // Append text file to end of message
     if !files.isEmpty {
+      let fmt = String(localized: "export.attachment", bundle: .localizedModule)
       let attachmentBlock = files.map { file in
-        "\n\n--- 添付ファイル: \(file.name) ---\n\(file.content)\n--- ここまで: \(file.name) ---"
+        String(format: fmt, file.name, file.content, file.name)
       }.joined()
       text += attachmentBlock
     }
@@ -460,7 +448,7 @@ public struct ChatView: View {
   }
 }
 
-// MARK: - エクスポートドキュメント
+// MARK: - Export document
 
 struct ChatExportDocument: FileDocument {
   static var readableContentTypes: [UTType] { [.plainText] }
@@ -469,15 +457,15 @@ struct ChatExportDocument: FileDocument {
 
   init(messages: [Message]) {
     let dateFormatter = ISO8601DateFormatter()
+    let bundle = Bundle.localizedModule
     let lines = messages.map { msg -> String in
       switch msg.role {
-      case .user:      return "【ユーザー】\n\(msg.content)"
-      case .assistant: return "【アシスタント】\n\(msg.content)"
-      case .tool:      return "【ツール】\(msg.content)"
+      case .user:      return String(format: String(localized: "export.user", bundle: bundle), msg.content)
+      case .assistant: return String(format: String(localized: "export.assistant", bundle: bundle), msg.content)
+      case .tool:      return String(format: String(localized: "export.tool", bundle: bundle), msg.content)
       }
     }
-    text = "# KanbeiAgent チャットエクスポート\n"
-          + "出力日時: \(dateFormatter.string(from: Date()))\n\n"
+    text = String(format: String(localized: "export.header", bundle: bundle), dateFormatter.string(from: Date()))
           + lines.joined(separator: "\n\n---\n\n")
   }
 
@@ -495,12 +483,12 @@ struct ChatExportDocument: FileDocument {
   }
 }
 
-// MARK: - Markdownレンダラー
+// MARK: - Markdown renderer
 
 private struct MarkdownBodyView: View {
   let text: String
 
-  // コードブロックとそれ以外を分割したセグメント
+  // Segments divided into code blocks and other text
   private enum Segment {
     case prose(String)
     case code(lang: String, body: String)
@@ -527,7 +515,7 @@ private struct MarkdownBodyView: View {
               .padding(.bottom, 6)
           }
           .frame(maxWidth: .infinity, alignment: .leading)
-          .background(Color(NSColor.textBackgroundColor).opacity(0.7),
+          .background(Color.textInputBackground.opacity(0.7),
                       in: RoundedRectangle(cornerRadius: 8))
           .overlay(RoundedRectangle(cornerRadius: 8)
             .stroke(Color.primary.opacity(0.1), lineWidth: 1))
@@ -551,7 +539,7 @@ private struct MarkdownBodyView: View {
       let range = NSRange(remaining.startIndex..., in: remaining)
       if let match = regex.firstMatch(in: remaining, range: range),
          let fullRange = Range(match.range, in: remaining) {
-        // コードブロック前のテキスト
+        // Text before code block
         let before = String(remaining[remaining.startIndex..<fullRange.lowerBound])
         if !before.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
           result.append(.prose(before))
@@ -576,14 +564,14 @@ private struct MarkdownBodyView: View {
   }
 }
 
-// インラインマークダウン（見出し・箇条書き・太字・斜体・インラインコード）
+// Inline markdown (headings, bullet lists, bold, italic, inline code)
 private struct ProseView: View {
   let text: String
 
-  // ブロック単位のセグメント
+  // Segments by block unit
   private enum Block: Identifiable {
     case line(Int, String)          // offset, raw
-    case table(Int, [[String]])     // offset, rows (separator行は除去済み)
+    case table(Int, [[String]])     // offset, rows (separator row removed)
     var id: Int {
       switch self { case .line(let o, _): return o; case .table(let o, _): return o }
     }
@@ -602,7 +590,7 @@ private struct ProseView: View {
     }
   }
 
-  // 連続する | 行をまとめてテーブルブロックに変換
+  // Convert consecutive | lines into table blocks
   private var blocks: [Block] {
     let rawLines = text.components(separatedBy: "\n")
     var result: [Block] = []
@@ -615,7 +603,7 @@ private struct ProseView: View {
           tableLines.append(rawLines[i])
           i += 1
         }
-        // セパレーター行（|---|---| 形式）を除去
+        // Remove separator row (|---|---| format)
         let rows = tableLines
           .filter { !$0.replacingOccurrences(of: "|", with: "")
                         .replacingOccurrences(of: "-", with: "")
@@ -719,7 +707,7 @@ private struct ProseView: View {
   }
 }
 
-// テーブルビュー
+// Table view
 private struct TableView: View {
   let rows: [[String]]
 
@@ -759,13 +747,14 @@ private struct TableView: View {
   }
 }
 
-// MARK: - スクリーンショット選択ポップオーバー
+// MARK: - Screenshot selection popover (macOS only)
 
+#if os(macOS)
 private struct ScreenshotPickerView: View {
   let onSelect: (Int) -> Void
 
   struct WinItem: Identifiable {
-    let id: Int          // windowID
+    let id: Int          // window ID
     let title: String
     let appName: String
     let appIcon: NSImage
@@ -775,7 +764,7 @@ private struct ScreenshotPickerView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
-      Text("キャプチャするウィンドウを選択")
+      Text("screenshot.title", bundle: .localizedModule)
         .font(.headline)
         .padding(.horizontal, 16)
         .padding(.top, 14)
@@ -784,7 +773,7 @@ private struct ScreenshotPickerView: View {
       Divider()
 
       if items.isEmpty {
-        Text("ウィンドウが見つかりません")
+        Text("screenshot.empty", bundle: .localizedModule)
           .foregroundStyle(.secondary)
           .frame(maxWidth: .infinity, minHeight: 80)
           .multilineTextAlignment(.center)
@@ -819,7 +808,7 @@ private struct ScreenshotPickerView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .contentShape(Rectangle())
-                .background(Color.primary.opacity(0.0001)) // ホバー領域確保
+                .background(Color.primary.opacity(0.0001)) // Reserve hover area
               }
               .buttonStyle(.plain)
             }
@@ -839,7 +828,7 @@ private struct ScreenshotPickerView: View {
 
     let runningApps = NSWorkspace.shared.runningApplications
 
-    var seen = Set<Int>()   // 同一アプリを1エントリに集約
+    var seen = Set<Int>()   // Consolidate same app to 1 entry
     items = list.compactMap { win -> WinItem? in
       guard
         let layer = win["kCGWindowLayer"] as? Int, layer == 0,
@@ -848,7 +837,7 @@ private struct ScreenshotPickerView: View {
         !owner.isEmpty
       else { return nil }
 
-      // 同一アプリの複数ウィンドウは最初の1件のみ
+      // Only first window for same app
       let pid = win["kCGWindowOwnerPID"] as? Int ?? 0
       guard !seen.contains(pid) else { return nil }
       seen.insert(pid)
@@ -863,8 +852,10 @@ private struct ScreenshotPickerView: View {
   }
 }
 
-// MARK: - sh 実行確認カード（インライン）
+// MARK: - Shell execution approval card (inline, macOS only)
+#endif // os(macOS) - ScreenshotPickerView
 
+#if os(macOS)
 private struct BashApprovalCard: View {
   let command: String
   let onDecide: (Bool) -> Void
@@ -876,7 +867,7 @@ private struct BashApprovalCard: View {
         .frame(width: 20)
 
       VStack(alignment: .leading, spacing: 8) {
-        Text("以下のコマンドを実行しますか？")
+        Text("bash.approval.title", bundle: .localizedModule)
           .font(.subheadline)
           .foregroundStyle(.primary)
 
@@ -891,7 +882,7 @@ private struct BashApprovalCard: View {
           Button {
             onDecide(true)
           } label: {
-            Label("実行", systemImage: "checkmark")
+            Label(String(localized: "bash.approval.approve", bundle: .localizedModule), systemImage: "checkmark")
               .frame(maxWidth: .infinity)
           }
           .buttonStyle(.borderedProminent)
@@ -902,7 +893,7 @@ private struct BashApprovalCard: View {
           Button {
             onDecide(false)
           } label: {
-            Label("キャンセル", systemImage: "xmark")
+            Label(String(localized: "bash.approval.deny", bundle: .localizedModule), systemImage: "xmark")
               .frame(maxWidth: .infinity)
           }
           .buttonStyle(.bordered)
@@ -918,7 +909,9 @@ private struct BashApprovalCard: View {
   }
 }
 
-// MARK: - メッセージ行
+#endif // os(macOS) - BashApprovalCard
+
+// MARK: - Message row
 
 private struct MessageRow: View {
   let message: Message
@@ -964,7 +957,7 @@ private struct MessageRow: View {
   }
 }
 
-// MARK: - 設定画面
+// MARK: - Settings screen
 
 private struct KanbeiSettingsView: View {
   @AppStorage("claudeApiKey") private var claudeApiKey = ""
@@ -972,63 +965,77 @@ private struct KanbeiSettingsView: View {
   @State private var inputKey = ""
   @Environment(\.dismiss) private var dismiss
 
-  private let models: [(id: String, label: String)] = [
-    ("claude-sonnet-4-6", "Claude Sonnet 4.6（推奨）"),
-    ("claude-opus-4-6",   "Claude Opus 4.6（高精度）"),
-    ("claude-haiku-4-5-20251001", "Claude Haiku 4.5（高速）"),
+  private let models: [(id: String, labelKey: String)] = [
+    ("claude-sonnet-4-6", "settings.model.sonnet"),
+    ("claude-opus-4-6",   "settings.model.opus"),
+    ("claude-haiku-4-5-20251001", "settings.model.haiku"),
   ]
 
   var body: some View {
     NavigationStack {
       Form {
         Section {
+          HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "info.circle.fill")
+              .foregroundStyle(.tint)
+              .font(.body)
+            VStack(alignment: .leading, spacing: 4) {
+              Text("settings.notice.api_key_required", bundle: .localizedModule)
+                .fontWeight(.medium)
+              Text("settings.notice.billing", bundle: .localizedModule)
+                .foregroundStyle(.secondary)
+              Link(String(localized: "settings.notice.console_link", bundle: .localizedModule),
+                   destination: URL(string: "https://console.anthropic.com/")!)
+            }
+            .font(.callout)
+          }
+          .padding(.vertical, 4)
+        }
+
+        Section {
           SecureField("sk-ant-...", text: $inputKey)
         } header: {
-          Text("Claude API Key")
+          Text("settings.api_key.header", bundle: .localizedModule)
         } footer: {
-          Text("Anthropic Consoleから取得してください。")
+          Text("settings.api_key.footer", bundle: .localizedModule)
             .font(.caption)
         }
 
         Section {
-          Picker("モデル", selection: $claudeModel) {
+          Picker(String(localized: "settings.model.label", bundle: .localizedModule), selection: $claudeModel) {
             ForEach(models, id: \.id) { model in
-              Text(model.label).tag(model.id)
+              Text(Bundle.localizedModule.localizedString(forKey: model.labelKey, value: nil, table: nil)).tag(model.id)
             }
           }
         } header: {
-          Text("モデル")
+          Text("settings.model.header", bundle: .localizedModule)
         }
       }
       .formStyle(.grouped)
-      .navigationTitle("設定")
+      .navigationTitle(String(localized: "settings.title", bundle: .localizedModule))
       .toolbar {
         ToolbarItem(placement: .confirmationAction) {
-          Button("保存") {
+          Button(String(localized: "settings.save", bundle: .localizedModule)) {
             claudeApiKey = inputKey
             dismiss()
           }
         }
         ToolbarItem(placement: .cancellationAction) {
-          Button("キャンセル") { dismiss() }
+          Button(String(localized: "settings.cancel", bundle: .localizedModule)) { dismiss() }
         }
       }
       .onAppear { inputKey = claudeApiKey }
     }
-    .frame(minWidth: 360, minHeight: 240)
+    .frame(minWidth: 360, minHeight: 300)
   }
 }
 
-// MARK: - よく使う指示
+// MARK: - Quick prompts
 
 private let quickPromptsKey = "QuickPrompts"
-private let defaultQuickPrompts: [String] = [
-  "このIssueの実装方針を提案して",
-  "コードレビューしてください",
-  "テストケースを考えて",
-  "バグの原因を調査して",
-  "リファクタリング案を出して",
-]
+private var defaultQuickPrompts: [String] {
+  (1...5).map { Bundle.localizedModule.localizedString(forKey: "quickprompts.default.\($0)", value: nil, table: nil) }
+}
 
 private struct QuickPromptsButton: View {
   let onSelect: (String) -> Void
@@ -1043,7 +1050,7 @@ private struct QuickPromptsButton: View {
         .foregroundStyle(Color.secondary)
     }
     .buttonStyle(.plain)
-    .help("よく使う指示")
+    .help(String(localized: "quickprompts.help", bundle: .localizedModule))
     .popover(isPresented: $showingPopover, arrowEdge: .top) {
       QuickPromptsPopover { selected in
         showingPopover = false
@@ -1073,7 +1080,7 @@ private struct QuickPromptsPopover: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
       HStack {
-        Text("よく使う指示")
+        Text("quickprompts.title", bundle: .localizedModule)
           .font(.caption)
           .foregroundStyle(.secondary)
           .padding(.horizontal, 12)
@@ -1088,6 +1095,15 @@ private struct QuickPromptsPopover: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(.secondary)
+        .padding(.top, 10)
+        Button {
+          onDismiss()
+        } label: {
+          Image(systemName: "xmark.circle.fill")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
         .padding(.trailing, 12)
         .padding(.top, 10)
       }
@@ -1095,7 +1111,7 @@ private struct QuickPromptsPopover: View {
       Divider()
 
       if prompts.isEmpty {
-        Text("指示が登録されていません")
+        Text("quickprompts.empty", bundle: .localizedModule)
           .font(.caption)
           .foregroundStyle(.secondary)
           .padding(12)
@@ -1155,22 +1171,22 @@ private struct QuickPromptsEditSheet: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      // ヘッダー
+      // Header
       HStack {
-        Text("よく使う指示を編集")
+        Text("quickprompts.edit.title", bundle: .localizedModule)
           .font(.headline)
         Spacer()
-        Button("完了") { savePrompts(); dismiss() }
+        Button(String(localized: "quickprompts.edit.done", bundle: .localizedModule)) { savePrompts(); dismiss() }
           .keyboardShortcut(.return, modifiers: .command)
       }
       .padding()
 
       Divider()
 
-      // リスト
+      // List
       List {
         ForEach($prompts, id: \.self) { $prompt in
-          TextField("指示を入力", text: $prompt)
+          TextField(String(localized: "quickprompts.edit.placeholder", bundle: .localizedModule), text: $prompt)
             .textFieldStyle(.plain)
         }
         .onMove { from, to in
@@ -1184,13 +1200,13 @@ private struct QuickPromptsEditSheet: View {
 
       Divider()
 
-      // 新規追加
+      // Add new
       HStack(spacing: 8) {
-        TextField("新しい指示を追加…", text: $newPrompt)
+        TextField(String(localized: "quickprompts.add.placeholder", bundle: .localizedModule), text: $newPrompt)
           .textFieldStyle(.roundedBorder)
           .focused($newFieldFocused)
           .onSubmit { addPrompt() }
-        Button("追加") { addPrompt() }
+        Button(String(localized: "quickprompts.add.button", bundle: .localizedModule)) { addPrompt() }
           .disabled(newPrompt.trimmingCharacters(in: .whitespaces).isEmpty)
       }
       .padding()
@@ -1208,10 +1224,23 @@ private struct QuickPromptsEditSheet: View {
   }
 }
 
-// MARK: - NSImage リサイズ拡張
+// MARK: - Platform compatible color
 
+private extension Color {
+  static var textInputBackground: Color {
+    #if os(macOS)
+    Color(NSColor.textBackgroundColor)
+    #else
+    Color(.systemBackground)
+    #endif
+  }
+}
+
+// MARK: - Image resize extension
+
+#if os(macOS)
 private extension NSImage {
-  /// 長辺が maxDimension を超える場合、アスペクト比を保って縮小する
+  /// If longest side exceeds maxDimension, shrink while maintaining aspect ratio
   func resizedIfNeeded(maxDimension: CGFloat) -> NSImage {
     let w = size.width
     let h = size.height
@@ -1228,3 +1257,16 @@ private extension NSImage {
     return result
   }
 }
+#else
+private extension UIImage {
+  /// If longest side exceeds maxDimension, shrink while maintaining aspect ratio
+  func resizedIfNeeded(maxDimension: CGFloat) -> UIImage {
+    let longer = max(size.width, size.height)
+    guard longer > maxDimension else { return self }
+    let scale = maxDimension / longer
+    let newSize = CGSize(width: size.width * scale, height: size.height * scale)
+    let renderer = UIGraphicsImageRenderer(size: newSize)
+    return renderer.image { _ in draw(in: CGRect(origin: .zero, size: newSize)) }
+  }
+}
+#endif

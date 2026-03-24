@@ -3,14 +3,16 @@ import PackageDescription
 
 let package = Package(
   name: "KanbeiAgentCore",
-  platforms: [.macOS(.v14)],
+  defaultLocalization: "en",
+  platforms: [.macOS(.v14), .iOS(.v17)],
   products: [
     .library(name: "KanbeiAgentCore", targets: ["KanbeiAgentCore"]),
   ],
   targets: [
     .target(
       name: "KanbeiAgentCore",
-      path: "Sources/KanbeiAgentCore"
+      path: "Sources/KanbeiAgentCore",
+      resources: [.process("Resources")]
     ),
   ]
 )

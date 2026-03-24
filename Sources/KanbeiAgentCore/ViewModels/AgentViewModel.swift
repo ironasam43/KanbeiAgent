@@ -1,3 +1,8 @@
+//
+//  AgentViewModel.swift
+//  KanbeiAgentCore
+//
+
 import Foundation
 import Combine
 import SwiftUI
@@ -9,7 +14,9 @@ public class AgentViewModel: ObservableObject {
   @Published public var errorMessage: String?
   @Published public var scrollTrigger = 0
   @Published public var workingDirectory: URL
+  #if os(macOS)
   @Published public var pendingBashCommand: PendingBashCommand?
+  #endif
 
   private let historyFileURL: URL
   private let systemPrompt: String
@@ -81,6 +88,7 @@ public class AgentViewModel: ObservableObject {
     return paths.sorted().joined(separator: "\n")
   }
 
+  #if os(macOS)
   public struct PendingBashCommand: Identifiable {
     public let id = UUID()
     public let command: String
@@ -101,6 +109,7 @@ public class AgentViewModel: ObservableObject {
     pendingBashCommand = nil
     pending.continuation.resume(returning: approved)
   }
+  #endif
 
   public var currentTask: Task<Void, Never>?
 
@@ -120,7 +129,7 @@ public class AgentViewModel: ObservableObject {
   private var tools: AgentTools { AgentTools(workingDirectory: workingDirectory) }
   private var history: [APIMessage] = []
 
-  // MARK: - 永続化
+  // MARK: - Persistence
 
   private struct SavedHistory: Codable {
     var messages: [Message]
@@ -164,7 +173,7 @@ public class AgentViewModel: ObservableObject {
     return result
   }
 
-  // MARK: - メッセージ送信
+  // MARK: - Message sending
 
   public func send(_ userInput: String) {
     let images: [(base64: String, mediaType: String)] = []
@@ -175,7 +184,7 @@ public class AgentViewModel: ObservableObject {
     let trimmed = userInput.trimmingCharacters(in: .whitespaces)
     guard !trimmed.isEmpty || !images.isEmpty else { return }
     guard !apiKey.isEmpty else {
-      errorMessage = "設定でClaude API Keyを入力してください"
+      errorMessage = String(localized: "agent.api_key_missing", bundle: .localizedModule)
       return
     }
 
@@ -199,9 +208,10 @@ public class AgentViewModel: ObservableObject {
     do {
       try await runAgentLoop(assistantIndex: assistantIndex)
     } catch is CancellationError {
+      let stopped = String(localized: "agent.stopped", bundle: .localizedModule)
       messages[assistantIndex].content += messages[assistantIndex].content.isEmpty
-        ? "⏹ 生成を停止しました"
-        : "\n\n⏹ 生成を停止しました"
+        ? stopped
+        : "\n\n" + stopped
     } catch {
       errorMessage = error.localizedDescription
       scrollTrigger += 1
@@ -216,7 +226,7 @@ public class AgentViewModel: ObservableObject {
     saveHistory()
   }
 
-  // MARK: - 履歴の最適化
+  // MARK: - History optimization
 
   private var smartTruncatedHistory: [APIMessage] {
     let keepTurns = 5
@@ -228,7 +238,7 @@ public class AgentViewModel: ObservableObject {
     return Array(history[keepFrom...])
   }
 
-  // MARK: - リトライ付きAPI呼び出し
+  // MARK: - API call with retry
 
   private func sendWithRetry(
     assistantIndex: Int,
@@ -244,24 +254,24 @@ public class AgentViewModel: ObservableObject {
           systemPrompt: systemPrompt,
           onText: onText, onToolUse: onToolUse
         )
-        await TokenUsageStore.shared.record(usage: result.usage)
+        TokenUsageStore.shared.record(usage: result.usage)
         return result.contents
       } catch ClaudeError.httpError(429, _) {
         if attempt < maxRetries - 1 {
           let wait = 30 * (1 << attempt)
-          errorMessage = "レート制限中… \(wait)秒後に自動リトライします (\(attempt + 1)/\(maxRetries - 1))"
+          errorMessage = String(format: String(localized: "agent.rate_limit", bundle: .localizedModule), wait, attempt + 1, maxRetries - 1)
           scrollTrigger += 1
           try await Task.sleep(for: .seconds(wait))
           errorMessage = nil
         } else {
-          throw ClaudeError.httpError(429, "リトライ上限に達しました。しばらく待ってから再送してください。")
+          throw ClaudeError.httpError(429, String(localized: "agent.rate_limit_exceeded", bundle: .localizedModule))
         }
       }
     }
     fatalError("unreachable")
   }
 
-  // MARK: - Agentループ
+  // MARK: - Agent loop
 
   private func runAgentLoop(assistantIndex startIndex: Int) async throws {
     var assistantIndex = startIndex
@@ -276,25 +286,31 @@ public class AgentViewModel: ObservableObject {
         useHaiku: iteration > 1,
         onText: { [weak self] text in
           guard let self else { return }
-          self.messages[assistantIndex].content += text
+          Task { @MainActor in
+            self.messages[assistantIndex].content += text
+          }
         },
         onToolUse: { [weak self] id, name, input async -> String in
           guard let self else { return "エラー" }
 
+          #if os(macOS)
           if name == "bash", let cmd = input["command"] as? String, self.isDangerous(cmd) {
             let approved = await withCheckedContinuation { continuation in
               Task { @MainActor in
                 self.pendingBashCommand = PendingBashCommand(command: cmd, continuation: continuation)
               }
             }
-            guard approved else { return "ユーザーによってキャンセルされました" }
+            guard approved else { return String(localized: "bash.approval.cancelled", bundle: .localizedModule) }
           }
+          #endif
 
-          let toolMsg = "[\(name)] 実行中..."
+          let toolMsg = String(format: String(localized: "tool.running", bundle: .localizedModule), name)
           await MainActor.run { self.messages.append(Message(role: .tool, content: toolMsg)) }
           let result = await self.tools.execute(name: name, input: input)
           let isError = result.hasPrefix("エラー:") || result.hasPrefix("Error:") || result.contains("error:") || result.contains("No such file")
-          let doneMsg = isError ? "[\(name)] ⚠️ \(result.prefix(120))" : "[\(name)] 完了"
+          let doneMsg = isError
+            ? String(format: String(localized: "tool.error", bundle: .localizedModule), name, String(result.prefix(120)))
+            : String(format: String(localized: "tool.done", bundle: .localizedModule), name)
           await MainActor.run { self.messages[self.messages.count - 1].content = doneMsg }
           return result
         }
@@ -309,7 +325,7 @@ public class AgentViewModel: ObservableObject {
           history.append(.assistant([.text(assistantContent)]))
         }
         if looksLikeUnfinishedPlan(assistantContent) && iteration < maxIterations - 1 {
-          history.append(.user("説明は不要です。今すぐfile_write・str_replace・bashなどのツールを呼び出してください。まず1つ目のファイルから始めてください。"))
+          history.append(.user(String(localized: "agent.continue_prompt", bundle: .localizedModule)))
           messages.append(Message(role: .assistant, content: "", isStreaming: true))
           assistantIndex = messages.count - 1
         } else {
@@ -338,12 +354,12 @@ public class AgentViewModel: ObservableObject {
     }
 
     if iteration >= maxIterations {
-      messages[assistantIndex].content += "\n\n⚠️ ツール呼び出しの上限（\(maxIterations)回）に達しました。"
+      messages[assistantIndex].content += String(format: String(localized: "agent.max_iterations", bundle: .localizedModule), maxIterations)
       messages[assistantIndex].isStreaming = false
     }
   }
 
-  // MARK: - ヘルパー
+  // MARK: - Helper
 
   private func looksLikeUnfinishedPlan(_ text: String) -> Bool {
     guard !text.isEmpty else { return false }
@@ -359,7 +375,7 @@ public class AgentViewModel: ObservableObject {
     return hasFutureAction || isPlanOnly
   }
 
-  // MARK: - 会話リセット
+  // MARK: - Conversation reset
 
   public func clearHistory() {
     messages.removeAll()

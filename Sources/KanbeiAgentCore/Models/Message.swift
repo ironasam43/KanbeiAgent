@@ -1,6 +1,11 @@
+//
+//  Message.swift
+//  KanbeiAgentCore
+//
+
 import Foundation
 
-// MARK: - チャットメッセージ（UI表示用）
+// MARK: - Chat message (for UI display)
 
 public struct Message: Identifiable, Codable {
   public let id: UUID
@@ -20,7 +25,7 @@ public struct Message: Identifiable, Codable {
   }
 }
 
-// MARK: - Claude API メッセージ形式
+// MARK: - Claude API message format
 
 public struct APIMessage: Codable {
   public let role: String
@@ -93,7 +98,7 @@ public struct ImageSource: Codable {
   }
 }
 
-// MARK: - ツール定義
+// MARK: - Tool definition
 
 public struct ToolDefinition: Codable {
   public let name: String

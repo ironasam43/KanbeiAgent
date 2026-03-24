@@ -1,7 +1,12 @@
+//
+//  TokenUsageStore.swift
+//  KanbeiAgentCore
+//
+
 import Foundation
 import Combine
 
-// MARK: - トークン使用量の1回分
+// MARK: - Token usage per API call
 
 public struct APIUsage {
   public let inputTokens: Int
@@ -13,7 +18,7 @@ public struct APIUsage {
   }
 }
 
-// MARK: - Claude モデル別料金定義（USD per 1M tokens）
+// MARK: - Claude model pricing definition (USD per 1M tokens)
 
 private struct ModelPricing {
   let inputPerMTok: Double
@@ -29,7 +34,7 @@ private let modelPricingTable: [String: ModelPricing] = [
 
 private let defaultPricing = ModelPricing(inputPerMTok: 3.0, outputPerMTok: 15.0)
 
-// MARK: - TokenUsageStore（シングルトン）
+// MARK: - TokenUsageStore (singleton)
 
 @MainActor
 public class TokenUsageStore: ObservableObject {

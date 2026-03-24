@@ -1,0 +1,86 @@
+/* Chat UI */
+"chat.title" = "Chat";
+"chat.subtitle" = "Powered by Claude";
+"chat.input.placeholder" = "メッセージを入力…";
+"chat.send.help" = "送信 (⌘Return)";
+"chat.stop.label" = "停止";
+"chat.stop.help" = "生成を停止";
+"chat.export.help" = "会話をエクスポート";
+"chat.clear.help" = "会話をクリア";
+"chat.settings.help" = "設定";
+"chat.workspace.help" = "Workspace";
+"chat.attach.help" = "ファイル・画像を添付";
+"chat.attach.file" = "ファイル・画像を添付";
+"chat.attach.screenshot" = "スクリーンショットを送信";
+"chat.workspace.prompt" = "選択";
+"chat.running" = "実行中…";
+
+/* Tool messages */
+"tool.running" = "[%@] 実行中...";
+"tool.done" = "[%@] 完了";
+"tool.error" = "[%@] ⚠️ %@";
+
+/* Agent messages */
+"agent.stopped" = "⏹ 生成を停止しました";
+"agent.max_iterations" = "\n\n⚠️ ツール呼び出しの上限（%d回）に達しました。";
+"agent.api_key_missing" = "設定でClaude API Keyを入力してください";
+"agent.rate_limit" = "レート制限中… %d秒後に自動リトライします (%d/%d)";
+"agent.rate_limit_exceeded" = "リトライ上限に達しました。しばらく待ってから再送してください。";
+"agent.continue_prompt" = "説明は不要です。今すぐfile_write・str_replace・bashなどのツールを呼び出してください。まず1つ目のファイルから始めてください。";
+
+/* Bash approval */
+"bash.approval.title" = "このコマンドを実行しますか？";
+"bash.approval.approve" = "実行";
+"bash.approval.deny" = "キャンセル";
+"bash.approval.cancelled" = "ユーザーによってキャンセルされました";
+
+/* Export */
+"export.user" = "【ユーザー】\n%@";
+"export.assistant" = "【アシスタント】\n%@";
+"export.tool" = "【ツール】\n%@";
+"export.attachment" = "\n\n--- 添付ファイル: %@ ---\n%@\n--- ここまで: %@ ---";
+"export.header" = "# KanbeiAgent チャットエクスポート\n出力日時: %@\n\n";
+
+/* Screenshot picker */
+"screenshot.title" = "キャプチャするウィンドウを選択";
+"screenshot.empty" = "ウィンドウが見つかりません";
+
+/* Settings */
+"settings.title" = "設定";
+"settings.notice.api_key_required" = "この機能を使用するには、AnthropicのClaude APIキーが必要です。";
+"settings.notice.billing" = "API利用料はAnthropicから従量課金で請求されます。";
+"settings.notice.console_link" = "Anthropic Console";
+"settings.api_key.header" = "Claude API Key";
+"settings.api_key.footer" = "Anthropic Consoleから取得してください。";
+"settings.model.header" = "モデル";
+"settings.model.label" = "モデル";
+"settings.save" = "保存";
+"settings.cancel" = "キャンセル";
+"settings.model.sonnet" = "Claude Sonnet 4.6（推奨）";
+"settings.model.opus" = "Claude Opus 4.6（高精度）";
+"settings.model.haiku" = "Claude Haiku 4.5（高速）";
+
+/* Quick prompts */
+"quickprompts.title" = "よく使う指示";
+"quickprompts.help" = "よく使う指示";
+"quickprompts.empty" = "指示が登録されていません";
+"quickprompts.edit.title" = "よく使う指示を編集";
+"quickprompts.edit.done" = "完了";
+"quickprompts.edit.placeholder" = "指示を入力";
+"quickprompts.add.placeholder" = "新しい指示を追加…";
+"quickprompts.add.button" = "追加";
+"quickprompts.default.1" = "このIssueの実装方針を提案して";
+"quickprompts.default.2" = "コードレビューしてください";
+"quickprompts.default.3" = "テストケースを考えて";
+"quickprompts.default.4" = "バグの原因を調査して";
+"quickprompts.default.5" = "リファクタリング案を出して";
+
+/* Errors */
+"error.unauthorized" = "APIキーが無効です。設定を確認してください。";
+"error.forbidden" = "このAPIキーにはアクセス権限がありません。";
+"error.no_network" = "ネットワークに接続できません。接続を確認してください。";
+"error.timeout" = "リクエストがタイムアウトしました。再度お試しください。";
+"error.network" = "通信エラー: %@";
+"error.server" = "Claude APIサーバーエラー (HTTP %d)。しばらく待ってから再試行してください。";
+"error.http" = "Claude API エラー (HTTP %d)\n%@";
+"error.parse" = "レスポンスの解析に失敗しました。";

@@ -1,6 +1,11 @@
+//
+//  ClaudeAPIClient.swift
+//  KanbeiAgentCore
+//
+
 import Foundation
 
-// MARK: - Claude API クライアント（SSEストリーミング + tool_use対応）
+// MARK: - Claude API client (SSE streaming + tool_use support)
 
 public class ClaudeAPIClient {
   private let apiKey: String
@@ -66,7 +71,7 @@ public class ClaudeAPIClient {
         throw ClaudeError.networkError(urlError.localizedDescription)
       }
     }
-    guard let http = response as? HTTPURLResponse else { throw ClaudeError.networkError("無効なレスポンス") }
+    guard let http = response as? HTTPURLResponse else { throw ClaudeError.parseError }
     guard (200..<300).contains(http.statusCode) else {
       var body = ""
       for try await line in stream.lines { body += line + "\n" }
@@ -163,23 +168,24 @@ public enum ClaudeError: LocalizedError {
   case serverError(Int)
 
   public var errorDescription: String? {
+    let bundle = Bundle.localizedModule
     switch self {
     case .unauthorized:
-      return "APIキーが無効です。設定を確認してください。"
+      return String(localized: "error.unauthorized", bundle: bundle)
     case .forbidden:
-      return "このAPIキーにはアクセス権限がありません。"
+      return String(localized: "error.forbidden", bundle: bundle)
     case .noNetwork:
-      return "ネットワークに接続できません。接続を確認してください。"
+      return String(localized: "error.no_network", bundle: bundle)
     case .timeout:
-      return "リクエストがタイムアウトしました。再度お試しください。"
+      return String(localized: "error.timeout", bundle: bundle)
     case .networkError(let msg):
-      return "通信エラー: \(msg)"
+      return String(format: String(localized: "error.network", bundle: bundle), msg)
     case .serverError(let code):
-      return "Claude APIサーバーエラー (HTTP \(code))。しばらく待ってから再試行してください。"
+      return String(format: String(localized: "error.server", bundle: bundle), code)
     case .httpError(let code, let body):
-      return "Claude API エラー (HTTP \(code))\n\(body)"
+      return String(format: String(localized: "error.http", bundle: bundle), code, body)
     case .parseError:
-      return "レスポンスの解析に失敗しました。"
+      return String(localized: "error.parse", bundle: bundle)
     }
   }
 }

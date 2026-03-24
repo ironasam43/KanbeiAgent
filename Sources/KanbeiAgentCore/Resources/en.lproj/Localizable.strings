@@ -1,0 +1,86 @@
+/* Chat UI */
+"chat.title" = "Chat";
+"chat.subtitle" = "Powered by Claude";
+"chat.input.placeholder" = "Type a message...";
+"chat.send.help" = "Send (⌘Return)";
+"chat.stop.label" = "Stop";
+"chat.stop.help" = "Stop generation";
+"chat.export.help" = "Export chat";
+"chat.clear.help" = "Clear chat";
+"chat.settings.help" = "Settings";
+"chat.workspace.help" = "Workspace";
+"chat.attach.help" = "Attach file or image";
+"chat.attach.file" = "File / Image";
+"chat.attach.screenshot" = "Send Screenshot";
+"chat.workspace.prompt" = "Select";
+"chat.running" = "Running...";
+
+/* Tool messages */
+"tool.running" = "[%@] Running...";
+"tool.done" = "[%@] Done";
+"tool.error" = "[%@] ⚠️ %@";
+
+/* Agent messages */
+"agent.stopped" = "⏹ Generation stopped";
+"agent.max_iterations" = "\n\n⚠️ Reached the tool call limit (%d).";
+"agent.api_key_missing" = "Please enter your Claude API key in Settings.";
+"agent.rate_limit" = "Rate limited... retrying in %d seconds (%d/%d)";
+"agent.rate_limit_exceeded" = "Retry limit reached. Please wait and try again.";
+"agent.continue_prompt" = "Please call the tools immediately without explanation. Start with the first file.";
+
+/* Bash approval */
+"bash.approval.title" = "Execute this command?";
+"bash.approval.approve" = "Execute";
+"bash.approval.deny" = "Cancel";
+"bash.approval.cancelled" = "Cancelled by user";
+
+/* Export */
+"export.user" = "[User]\n%@";
+"export.assistant" = "[Assistant]\n%@";
+"export.tool" = "[Tool]\n%@";
+"export.attachment" = "\n\n--- Attachment: %@ ---\n%@\n--- End: %@ ---";
+"export.header" = "# KanbeiAgent Chat Export\nExported: %@\n\n";
+
+/* Screenshot picker */
+"screenshot.title" = "Select a window to capture";
+"screenshot.empty" = "No windows found";
+
+/* Settings */
+"settings.title" = "Settings";
+"settings.notice.api_key_required" = "A Claude API key from Anthropic is required to use this feature.";
+"settings.notice.billing" = "API usage is billed directly by Anthropic on a pay-per-use basis.";
+"settings.notice.console_link" = "Anthropic Console";
+"settings.api_key.header" = "Claude API Key";
+"settings.api_key.footer" = "Get your key from Anthropic Console.";
+"settings.model.header" = "Model";
+"settings.model.label" = "Model";
+"settings.save" = "Save";
+"settings.cancel" = "Cancel";
+"settings.model.sonnet" = "Claude Sonnet 4.6 (Recommended)";
+"settings.model.opus" = "Claude Opus 4.6 (High accuracy)";
+"settings.model.haiku" = "Claude Haiku 4.5 (Fast)";
+
+/* Quick prompts */
+"quickprompts.title" = "Quick Prompts";
+"quickprompts.help" = "Quick Prompts";
+"quickprompts.empty" = "No prompts registered";
+"quickprompts.edit.title" = "Edit Quick Prompts";
+"quickprompts.edit.done" = "Done";
+"quickprompts.edit.placeholder" = "Enter a prompt";
+"quickprompts.add.placeholder" = "Add new prompt…";
+"quickprompts.add.button" = "Add";
+"quickprompts.default.1" = "Suggest an implementation plan for this issue";
+"quickprompts.default.2" = "Please review this code";
+"quickprompts.default.3" = "Suggest test cases";
+"quickprompts.default.4" = "Investigate the root cause of this bug";
+"quickprompts.default.5" = "Propose a refactoring plan";
+
+/* Errors */
+"error.unauthorized" = "Invalid API key. Please check your Settings.";
+"error.forbidden" = "This API key does not have access.";
+"error.no_network" = "No network connection. Please check your connection.";
+"error.timeout" = "Request timed out. Please try again.";
+"error.network" = "Network error: %@";
+"error.server" = "Claude API server error (HTTP %d). Please try again later.";
+"error.http" = "Claude API error (HTTP %d)\n%@";
+"error.parse" = "Failed to parse response.";
