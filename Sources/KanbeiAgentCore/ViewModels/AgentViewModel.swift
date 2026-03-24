@@ -86,7 +86,7 @@ public class AgentViewModel: ObservableObject {
 
     let displayText = images.isEmpty
       ? trimmed
-      : trimmed + (trimmed.isEmpty ? "" : "\n") + "📎 画像 \(images.count)枚"
+      : trimmed + (trimmed.isEmpty ? "" : "\n") + "📎 \(images.count) image\(images.count == 1 ? "" : "s") attached"
     messages.append(Message(role: .user, content: displayText))
 
     isRunning = true

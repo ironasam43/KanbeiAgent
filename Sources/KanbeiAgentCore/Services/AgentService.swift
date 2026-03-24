@@ -28,19 +28,19 @@ public class AgentService {
 
     let fileTree = AgentService.buildFileTree(at: context.workingDirectoryURL)
     var prompt = """
-      あなたは優秀なソフトウェアエンジニアのAIエージェントです。
+      You are an expert AI software engineering agent.
 
-      【最重要】ツールを使う前にテキストで計画・説明・差分まとめを書いてはいけません。
-      まず即座にツールを呼び出し、作業が完了してから結果をテキストで報告してください。
+      [CRITICAL] Do NOT write plans, explanations, or diff summaries in text before calling tools.
+      Call tools immediately, then report the result in text after the work is complete.
 
-      - ファイルを読んだら、次のレスポンスで即座に書き込みを開始すること
-      - 「実行します」「書き換えます」などの宣言テキストを出力した場合、同じレスポンス内で必ずツールも呼び出すこと
-      - 同じツールを同じ引数で2回以上呼ばない
-      - ファイル構成は下記に記載済みなので、list_filesやglobで探索しないこと
-      - 不必要な確認や追加調査は行わない
-      - タスクが完了したら必ずテキストで結果を伝えて終了する
+      - After reading a file, start writing in the very next response
+      - If you output a declaration like "I will do X", you must also call a tool in the same response
+      - Never call the same tool with the same arguments more than once
+      - The file tree is listed below; do not use list_files or glob to explore
+      - Avoid unnecessary confirmations or extra investigation
+      - When the task is complete, always report the result in text and finish
 
-      作業ディレクトリ: \(context.workingDirectoryURL.path)
+      Working directory: \(context.workingDirectoryURL.path)
       """
     if !context.systemPromptAddendum.isEmpty {
       prompt += "\n\n\(context.systemPromptAddendum)"
@@ -48,8 +48,8 @@ public class AgentService {
     if !fileTree.isEmpty {
       prompt += """
 
-      ## プロジェクトのファイル構成
-      以下のパスはすべて作業ディレクトリ（\(context.workingDirectoryURL.path)）からの相対パスです。
+      ## Project file tree
+      All paths are relative to the working directory (\(context.workingDirectoryURL.path)).
 
       \(fileTree)
       """
@@ -154,7 +154,7 @@ public class AgentService {
 
           continuation.yield(.toolRunning(name: name))
           let result = await tools.execute(name: name, input: input)
-          let isError = result.hasPrefix("エラー:") || result.hasPrefix("Error:")
+          let isError = result.hasPrefix("Error:") || result.hasPrefix("error:")
             || result.contains("error:") || result.contains("No such file")
           if isError {
             continuation.yield(.toolFailed(name: name, preview: String(result.prefix(120))))
@@ -265,15 +265,15 @@ public class AgentService {
 
   private func looksLikeUnfinishedPlan(_ text: String) -> Bool {
     guard !text.isEmpty else { return false }
-    let completionWords = ["完了しました", "書き換えました", "修正しました", "終わりました", "以上です", "できました"]
-    if completionWords.contains(where: { text.contains($0) }) { return false }
+    let completionWords = ["completed", "done", "finished", "fixed", "updated", "applied"]
+    if completionWords.contains(where: { text.lowercased().contains($0) }) { return false }
     let intentionWords = [
-      "今すぐ実行", "書き換えます", "実行します", "書き込みます", "修正します",
-      "行います", "適用します", "開始します", "進めます"
+      "I will ", "I'll ", "Let me ", "I'm going to ", "I am going to ",
+      "Now I will", "Next I will", "I'll now", "will now"
     ]
     let hasFutureAction = intentionWords.contains { text.contains($0) }
-    let isPlanOnly = text.contains("差分まとめ") || text.contains("差分:") ||
-                     text.contains("以下のファイルを") || text.contains("以下を変更")
+    let isPlanOnly = text.contains("Here's the plan") || text.contains("Here is the plan") ||
+                     text.contains("I'll make the following") || text.contains("changes to make")
     return hasFutureAction || isPlanOnly
   }
 

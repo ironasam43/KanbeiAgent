@@ -1,56 +1,49 @@
-# CLAUDE.md（KanbeiAgent）
+# CLAUDE.md (KanbeiAgentCore)
 
-ルートの CLAUDE.md も参照してください。
+See the root CLAUDE.md for workspace-wide conventions.
 
-## プロダクト概要
+## Product Overview
 
-- **プロダクト名**：KanbeiAgent
-- **概要**：Claude Code（VS Code extension）相当の機能を持つmacOSネイティブエージェント。将来的にDevDeckへの組み込みを想定。
-- **対象ユーザー**：Claude Codeを使って開発する個人開発者
-- **リポジトリ**：https://github.com/ironasam43/KanbeiAgent
+- **Package**: KanbeiAgentCore
+- **Summary**: A Swift Package that provides a Claude-powered AI agent for macOS and iOS apps. Intended as a shared library for DevDeck and other apps.
+- **Repository**: https://github.com/ironasam43/KanbeiAgent
 
-## 技術スタック
+## Tech Stack
 
-- **言語**：Swift
-- **UIフレームワーク**：SwiftUI
-- **対象OS**：macOS 14.0（Sonoma）以上
-- **Xcodeプロジェクト**：`ios/KanbeiAgent.xcodeproj`
+- **Language**: Swift
+- **UI framework**: SwiftUI (views only; core logic has no SwiftUI dependency)
+- **Target OS**: macOS 14.0+ / iOS 17.0+
+- **Xcode projects**: `SampleApp/SampleApp.xcodeproj`, `SampleAppIOS/SampleAppIOS.xcodeproj`
 
-## アーキテクチャ
+## Architecture
 
-- **パターン**：MVVM
-- **Claude API**：tool_use + SSEストリーミング
-- **Agentループ**：メッセージ送信 → ツール呼び出し → 結果返却 → 繰り返し
+- **Pattern**: MVVM
+- **Claude API**: tool_use + SSE streaming
+- **Agent loop**: send message → call tools → return results → repeat
+- **Headless layer**: `AgentService` (no SwiftUI) + `AgentViewModel` (SwiftUI wrapper)
 
-## 主要コンポーネント（予定）
+## Key Components
 
-### Phase 1（MVP）
-1. Claude APIクライアント（tool_use + ストリーミング）
-2. Agentループ
-3. 基本ツール実装（FileRead / FileWrite / BashExec）
-4. チャットUI
+| File | Role |
+|------|------|
+| `Services/AgentService.swift` | Core agent loop, `AsyncThrowingStream<AgentEvent, Error>` API |
+| `Services/AgentEvent.swift` | Typed events emitted by AgentService |
+| `Services/ClaudeAPIClient.swift` | Claude API HTTP client (tool_use + SSE) |
+| `ViewModels/AgentViewModel.swift` | SwiftUI `@Published` wrapper around AgentService |
+| `Views/ChatView.swift` | Drop-in chat UI |
+| `Tools/AgentTools.swift` | Tool implementations (file_read, str_replace, bash, …) |
 
-### Phase 2
-5. Grep / Glob / Git操作ツール
-6. 会話履歴の保存
-7. 作業ディレクトリの指定UI
+## xcframework Distribution
 
-### Phase 3
-8. DevDeckへの組み込みインターフェース
+The package is also distributed as a static xcframework for projects that cannot use SPM directly (e.g. DevDeck).
 
-## ツール仕様
+Build script: `build_xcframework.sh`
+Output: `build/KanbeiAgentCore.xcframework`
+Platforms: macOS (arm64+x86_64), iOS (arm64), iOS Simulator (arm64+x86_64)
 
-```
-FileRead(path: String) -> String
-FileWrite(path: String, content: String) -> Void
-BashExec(command: String, workingDir: String) -> String
-Grep(pattern: String, path: String) -> [String]
-Glob(pattern: String, path: String) -> [String]
-```
+## Instructions for Claude
 
-## Claudeへの指示
-
-- 提案は日本語で返してください
-- 大きな変更の前には必ず方針を確認してください
-- セキュリティに注意（BashExecは危険なコマンドを実行しないよう考慮）
-- SwiftUIのベストプラクティスに従ってください
+- Follow SwiftUI and Swift concurrency best practices
+- Keep `AgentService` free of SwiftUI imports
+- Use `#if os(macOS)` guards for macOS-only features (bash, screenshots)
+- Confirm approach before making large changes
