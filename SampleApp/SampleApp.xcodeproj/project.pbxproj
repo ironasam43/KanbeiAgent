@@ -349,9 +349,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		2048027B2F7125DF00FD50BF /* XCLocalSwiftPackageReference "../../../KanbeiAgent" */ = {
+		2048027B2F7125DF00FD50BF /* XCLocalSwiftPackageReference "../../KanbeiDev" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = ../../../KanbeiAgent;
+			relativePath = ../../KanbeiDev;
 		};
 /* End XCLocalSwiftPackageReference section */
 
