@@ -5,7 +5,7 @@ See the root CLAUDE.md for workspace-wide conventions.
 ## Product Overview
 
 - **Package**: KanbeiAgentCore
-- **Summary**: A Swift Package that provides a Claude-powered AI agent for macOS and iOS apps. Intended as a shared library for DevDeck and other apps.
+- **Summary**: A Swift Package that provides a Claude-powered AI agent for macOS and iOS apps.
 - **Repository**: https://github.com/ironasam43/KanbeiAgent
 
 ## Tech Stack
@@ -35,7 +35,7 @@ See the root CLAUDE.md for workspace-wide conventions.
 
 ## xcframework Distribution
 
-The package is also distributed as a static xcframework for projects that cannot use SPM directly (e.g. DevDeck).
+The package is also distributed as a static xcframework for projects that cannot use SPM directly.
 
 Build script: `build_xcframework.sh`
 Output: `build/KanbeiAgentCore.xcframework`
