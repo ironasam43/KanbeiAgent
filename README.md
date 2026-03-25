@@ -57,6 +57,17 @@ Or add via Xcode: **File → Add Package Dependencies** and enter the repository
 - `SampleApp/` — macOS sample app (SwiftUI, local SPM reference)
 - `SampleAppIOS/` — iOS sample app (SwiftUI, local SPM reference)
 
+## Story
+
+This software was built in just two days through agile development between ironasam43 and Claude.
+
+## Support
+
+If you find this project useful, your support is appreciated:
+
+- One-time: https://buy.stripe.com/9B600l2WWdHIg3d5R957W01
+- Annual: https://buy.stripe.com/7sYaEZ7dcfPQ8AL6Vd57W00
+
 ## License
 
 MIT
