@@ -45,6 +45,14 @@ public class AgentService {
     if !context.systemPromptAddendum.isEmpty {
       prompt += "\n\n\(context.systemPromptAddendum)"
     }
+    let contextFileContents = context.contextFiles.compactMap { url -> String? in
+      guard let content = try? String(contentsOf: url, encoding: .utf8),
+            !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+      return "### \(url.lastPathComponent)\n\(content)"
+    }
+    if !contextFileContents.isEmpty {
+      prompt += "\n\n## Context Files\n\n" + contextFileContents.joined(separator: "\n\n")
+    }
     if !fileTree.isEmpty {
       prompt += """
 

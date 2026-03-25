@@ -2,7 +2,7 @@
 "chat.title" = "Chat";
 "chat.subtitle" = "Powered by Claude";
 "chat.input.placeholder" = "メッセージを入力…";
-"chat.send.help" = "送信 (⌘Return)";
+"chat.send.help" = "送信 (Return) / 改行 (⌥Return または ⇧Return)";
 "chat.stop.label" = "停止";
 "chat.stop.help" = "生成を停止";
 "chat.export.help" = "会話をエクスポート";
@@ -14,6 +14,10 @@
 "chat.attach.screenshot" = "スクリーンショットを送信";
 "chat.workspace.prompt" = "選択";
 "chat.running" = "実行中…";
+"chat.compact.tooltip" = "クリックでコンパクト (%d トークン)";
+"chat.compact.confirm.title" = "コンテキストをリセットしますか？";
+"chat.compact.confirm.button" = "リセット";
+"chat.compact.confirm.message" = "会話履歴が削除されます。エージェントは新しい会話として始まります。";
 
 /* Tool messages */
 "tool.running" = "[%@] 実行中...";

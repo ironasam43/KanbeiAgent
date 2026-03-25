@@ -13,4 +13,10 @@ public protocol KanbeiAgentContext {
   var historyFileName: String { get }
   /// Additional information for the system prompt (such as issue information)
   var systemPromptAddendum: String { get }
+  /// Additional files whose contents are injected into the system prompt as context
+  var contextFiles: [URL] { get }
+}
+
+public extension KanbeiAgentContext {
+  var contextFiles: [URL] { [] }
 }

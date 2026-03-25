@@ -12,9 +12,19 @@ import AppKit
 public struct ChatView: View {
   @StateObject private var viewModel: AgentViewModel
   @State private var input = ""
+  private let additionalSettingsContent: AnyView?
 
   public init(context: any KanbeiAgentContext) {
     _viewModel = StateObject(wrappedValue: AgentViewModel(context: context))
+    self.additionalSettingsContent = nil
+  }
+
+  public init<Extra: View>(
+    context: any KanbeiAgentContext,
+    @ViewBuilder additionalSettings: @escaping () -> Extra
+  ) {
+    _viewModel = StateObject(wrappedValue: AgentViewModel(context: context))
+    self.additionalSettingsContent = AnyView(additionalSettings())
   }
   @State private var showingSettings = false
   @State private var showingAttachmentPicker = false
@@ -58,7 +68,7 @@ public struct ChatView: View {
       inputAreaView
     }
     .sheet(isPresented: $showingSettings) {
-      KanbeiSettingsView()
+      KanbeiSettingsView(additionalContent: additionalSettingsContent)
     }
     .fileImporter(
       isPresented: $showingAttachmentPicker,
@@ -310,6 +320,11 @@ public struct ChatView: View {
       }
 
       HStack(alignment: .center, spacing: 6) {
+        TokenArcButton {
+          viewModel.clearHistory()
+          TokenUsageStore.shared.resetSession()
+        }
+
         Menu {
           Button {
             showingAttachmentPicker = true
@@ -329,7 +344,7 @@ public struct ChatView: View {
             .font(.title2).foregroundStyle(Color.secondary)
         }
         .menuStyle(.borderlessButton).fixedSize()
-        .help(String(localized: "chat.attach.help", bundle: .localizedModule))
+        .nativeTooltip(String(localized: "chat.attach.help", bundle: .localizedModule))
         #if os(macOS)
         .popover(isPresented: $showingScreenshotPicker, arrowEdge: .bottom) {
           ScreenshotPickerView { windowID in
@@ -346,6 +361,20 @@ public struct ChatView: View {
           .padding(8)
           .background(Color.textInputBackground, in: RoundedRectangle(cornerRadius: 8))
           .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red.opacity(0.6), lineWidth: 1))
+          .onKeyPress(.return, phases: .down) { press in
+            if press.modifiers.contains(.option) || press.modifiers.contains(.shift) {
+              input += "\n"
+              return .handled
+            }
+            #if os(macOS)
+            if NSTextInputContext.current?.client.hasMarkedText() == true {
+              return .ignored
+            }
+            #endif
+            guard canSend, !viewModel.isRunning else { return .ignored }
+            sendMessage()
+            return .handled
+          }
 
         QuickPromptsButton { selected in
           input = input.isEmpty ? selected : input + "\n" + selected
@@ -359,7 +388,7 @@ public struct ChatView: View {
               .foregroundStyle(Color.red)
           }
           .buttonStyle(.plain)
-          .help(String(localized: "chat.stop.help", bundle: .localizedModule))
+          .nativeTooltip(String(localized: "chat.stop.help", bundle: .localizedModule))
         } else {
           Button { sendMessage() } label: {
             Image(systemName: "arrow.up.circle.fill")
@@ -367,8 +396,7 @@ public struct ChatView: View {
               .foregroundStyle(canSend ? Color.accentColor : Color.secondary)
           }
           .buttonStyle(.plain).disabled(!canSend)
-          .keyboardShortcut(.return, modifiers: .command)
-          .help(String(localized: "chat.send.help", bundle: .localizedModule))
+          .nativeTooltip(String(localized: "chat.send.help", bundle: .localizedModule))
         }
       }
       .padding(12).background(.bar)
@@ -400,7 +428,7 @@ public struct ChatView: View {
           .font(.caption).lineLimit(1)
       }
       .buttonStyle(.bordered).controlSize(.small)
-      .help(String(localized: "chat.workspace.help", bundle: .localizedModule))
+      .nativeTooltip(String(localized: "chat.workspace.help", bundle: .localizedModule))
       #endif
       Spacer()
       Button {
@@ -408,15 +436,15 @@ public struct ChatView: View {
         showingExporter = true
       } label: { Image(systemName: "square.and.arrow.up") }
         .buttonStyle(.plain).foregroundStyle(.secondary)
-        .help(String(localized: "chat.export.help", bundle: .localizedModule))
+        .nativeTooltip(String(localized: "chat.export.help", bundle: .localizedModule))
         .disabled(viewModel.messages.isEmpty)
       Button { viewModel.clearHistory() } label: { Image(systemName: "trash") }
         .buttonStyle(.plain).foregroundStyle(.secondary)
-        .help(String(localized: "chat.clear.help", bundle: .localizedModule))
+        .nativeTooltip(String(localized: "chat.clear.help", bundle: .localizedModule))
         .disabled(viewModel.messages.isEmpty)
       Button { showingSettings = true } label: { Image(systemName: "gear") }
         .buttonStyle(.plain).foregroundStyle(.secondary)
-        .help(String(localized: "chat.settings.help", bundle: .localizedModule))
+        .nativeTooltip(String(localized: "chat.settings.help", bundle: .localizedModule))
     }
   }
 
@@ -855,6 +883,54 @@ private struct ScreenshotPickerView: View {
 // MARK: - Shell execution approval card (inline, macOS only)
 #endif // os(macOS) - ScreenshotPickerView
 
+// MARK: - Token Arc Button
+
+private struct TokenArcButton: View {
+  let onCompact: () -> Void
+  @ObservedObject private var tokenStore = TokenUsageStore.shared
+  @State private var showingConfirm = false
+
+  private let contextWindow: Double = 200_000
+
+  private var progress: Double {
+    min(Double(tokenStore.sessionInputTokens) / contextWindow, 1.0)
+  }
+
+  private var arcColor: Color {
+    switch progress {
+    case ..<0.5: return .secondary
+    case ..<0.8: return .yellow
+    default:     return .red
+    }
+  }
+
+  var body: some View {
+    Button { showingConfirm = true } label: {
+      ZStack {
+        Circle()
+          .stroke(Color.secondary.opacity(0.2), lineWidth: 2.5)
+        Circle()
+          .trim(from: 0, to: progress)
+          .stroke(arcColor, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+          .rotationEffect(.degrees(-90))
+          .animation(.easeInOut, value: progress)
+      }
+      .frame(width: 18, height: 18)
+    }
+    .buttonStyle(.plain)
+    .nativeTooltip(String(format: String(localized: "chat.compact.tooltip", bundle: .localizedModule), tokenStore.sessionInputTokens))
+    .confirmationDialog(
+      String(localized: "chat.compact.confirm.title", bundle: .localizedModule),
+      isPresented: $showingConfirm,
+      titleVisibility: .visible
+    ) {
+      Button(String(localized: "chat.compact.confirm.button", bundle: .localizedModule), role: .destructive) { onCompact() }
+    } message: {
+      Text("chat.compact.confirm.message", bundle: .localizedModule)
+    }
+  }
+}
+
 #if os(macOS)
 private struct BashApprovalCard: View {
   let command: String
@@ -863,7 +939,7 @@ private struct BashApprovalCard: View {
   var body: some View {
     HStack(alignment: .top, spacing: 8) {
       Image(systemName: "terminal")
-        .foregroundStyle(.orange)
+        .foregroundStyle(.blue)
         .frame(width: 20)
 
       VStack(alignment: .leading, spacing: 8) {
@@ -886,7 +962,7 @@ private struct BashApprovalCard: View {
               .frame(maxWidth: .infinity)
           }
           .buttonStyle(.borderedProminent)
-          .tint(.orange)
+          .tint(.blue)
           .controlSize(.small)
           .keyboardShortcut(.return, modifiers: [])
 
@@ -904,8 +980,8 @@ private struct BashApprovalCard: View {
       Spacer(minLength: 60)
     }
     .padding(12)
-    .background(.orange.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
-    .overlay(RoundedRectangle(cornerRadius: 12).stroke(.orange.opacity(0.3), lineWidth: 1))
+    .background(.blue.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+    .overlay(RoundedRectangle(cornerRadius: 12).stroke(.blue.opacity(0.3), lineWidth: 1))
   }
 }
 
@@ -960,6 +1036,12 @@ private struct MessageRow: View {
 // MARK: - Settings screen
 
 private struct KanbeiSettingsView: View {
+  let additionalContent: AnyView?
+
+  init(additionalContent: AnyView? = nil) {
+    self.additionalContent = additionalContent
+  }
+
   @AppStorage("claudeApiKey") private var claudeApiKey = ""
   @AppStorage("claudeModel") private var claudeModel = "claude-sonnet-4-6"
   @State private var inputKey = ""
@@ -1010,6 +1092,10 @@ private struct KanbeiSettingsView: View {
         } header: {
           Text("settings.model.header", bundle: .localizedModule)
         }
+
+        if let extra = additionalContent {
+          extra
+        }
       }
       .formStyle(.grouped)
       .navigationTitle(String(localized: "settings.title", bundle: .localizedModule))
@@ -1050,7 +1136,7 @@ private struct QuickPromptsButton: View {
         .foregroundStyle(Color.secondary)
     }
     .buttonStyle(.plain)
-    .help(String(localized: "quickprompts.help", bundle: .localizedModule))
+    .nativeTooltip(String(localized: "quickprompts.help", bundle: .localizedModule))
     .popover(isPresented: $showingPopover, arrowEdge: .top) {
       QuickPromptsPopover { selected in
         showingPopover = false
@@ -1267,6 +1353,32 @@ private extension UIImage {
     let newSize = CGSize(width: size.width * scale, height: size.height * scale)
     let renderer = UIGraphicsImageRenderer(size: newSize)
     return renderer.image { _ in draw(in: CGRect(origin: .zero, size: newSize)) }
+  }
+}
+#endif
+
+// MARK: - Tooltip (macOS NSView.toolTip fallback, iOS .help() fallback)
+
+extension View {
+  func nativeTooltip(_ text: String) -> some View {
+    #if os(macOS)
+    self.overlay(NativeTooltipView(text: text).allowsHitTesting(false))
+    #else
+    self.help(text)
+    #endif
+  }
+}
+
+#if os(macOS)
+private struct NativeTooltipView: NSViewRepresentable {
+  let text: String
+  func makeNSView(context: Context) -> NSView {
+    let v = NSView()
+    v.toolTip = text
+    return v
+  }
+  func updateNSView(_ nsView: NSView, context: Context) {
+    nsView.toolTip = text
   }
 }
 #endif

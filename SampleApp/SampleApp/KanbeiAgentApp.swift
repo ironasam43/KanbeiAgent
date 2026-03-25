@@ -15,5 +15,6 @@ struct KanbeiAgentApp: App {
     }
     .defaultSize(width: 800, height: 600)
     .windowResizability(.contentMinSize)
+
   }
 }
