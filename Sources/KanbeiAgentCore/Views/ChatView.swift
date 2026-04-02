@@ -13,10 +13,36 @@ public struct ChatView: View {
   @StateObject private var viewModel: AgentViewModel
   @State private var input = ""
   private let additionalSettingsContent: AnyView?
+  private let title: String?
+  private let folderPickerEnabled: Bool
+  private let initialSystemContext: String?
 
   public init(context: any KanbeiAgentContext) {
     _viewModel = StateObject(wrappedValue: AgentViewModel(context: context))
     self.additionalSettingsContent = nil
+    self.title = nil
+    self.folderPickerEnabled = true
+    self.initialSystemContext = nil
+  }
+
+  /// - Parameters:
+  ///   - context: エージェントコンテキスト
+  ///   - storageURL: 履歴 JSON の保存先 URL（nil = App Support デフォルト）
+  ///   - title: ツールバータイトル（nil = ローカライズデフォルト）
+  ///   - folderPickerEnabled: フォルダ選択ボタンを表示するか（macOS のみ）
+  ///   - systemContext: 動的なシステムコンテキスト文字列
+  public init(
+    context: any KanbeiAgentContext,
+    storageURL: URL? = nil,
+    title: String? = nil,
+    folderPickerEnabled: Bool = true,
+    systemContext: String? = nil
+  ) {
+    _viewModel = StateObject(wrappedValue: AgentViewModel(context: context, storageURL: storageURL))
+    self.additionalSettingsContent = nil
+    self.title = title
+    self.folderPickerEnabled = folderPickerEnabled
+    self.initialSystemContext = systemContext
   }
 
   public init<Extra: View>(
@@ -25,6 +51,9 @@ public struct ChatView: View {
   ) {
     _viewModel = StateObject(wrappedValue: AgentViewModel(context: context))
     self.additionalSettingsContent = AnyView(additionalSettings())
+    self.title = nil
+    self.folderPickerEnabled = true
+    self.initialSystemContext = nil
   }
   @State private var showingSettings = false
   @State private var showingAttachmentPicker = false
@@ -139,12 +168,16 @@ public struct ChatView: View {
       exportDocument = nil
     }
     .onAppear {
+      viewModel.systemContext = initialSystemContext
       viewModel.loadHistory()
       // Scroll to end after loadHistory
       DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
         viewModel.scrollTrigger += 1
       }
       inputFocused = true
+    }
+    .onChange(of: initialSystemContext) { _, new in
+      viewModel.systemContext = new
     }
   }
 
@@ -407,28 +440,30 @@ public struct ChatView: View {
   private var toolbarView: some View {
     HStack {
       VStack(alignment: .leading, spacing: 1) {
-        Text("chat.title", bundle: .localizedModule)
+        Text(title ?? String(localized: "chat.title", bundle: .localizedModule))
           .font(.headline).fontWeight(.bold)
         Text("chat.subtitle", bundle: .localizedModule)
           .font(.caption2).foregroundStyle(.secondary)
       }
       Spacer()
       #if os(macOS)
-      Button {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.prompt = String(localized: "chat.workspace.prompt", bundle: .localizedModule)
-        if panel.runModal() == .OK, let url = panel.url {
-          viewModel.workingDirectory = url
+      if folderPickerEnabled {
+        Button {
+          let panel = NSOpenPanel()
+          panel.canChooseFiles = false
+          panel.canChooseDirectories = true
+          panel.allowsMultipleSelection = false
+          panel.prompt = String(localized: "chat.workspace.prompt", bundle: .localizedModule)
+          if panel.runModal() == .OK, let url = panel.url {
+            viewModel.workingDirectory = url
+          }
+        } label: {
+          Label(viewModel.workingDirectory.lastPathComponent, systemImage: "folder")
+            .font(.caption).lineLimit(1)
         }
-      } label: {
-        Label(viewModel.workingDirectory.lastPathComponent, systemImage: "folder")
-          .font(.caption).lineLimit(1)
+        .buttonStyle(.bordered).controlSize(.small)
+        .nativeTooltip(String(localized: "chat.workspace.help", bundle: .localizedModule))
       }
-      .buttonStyle(.bordered).controlSize(.small)
-      .nativeTooltip(String(localized: "chat.workspace.help", bundle: .localizedModule))
       #endif
       Spacer()
       Button {

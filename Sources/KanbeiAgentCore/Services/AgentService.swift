@@ -62,7 +62,7 @@ public class AgentService {
       \(fileTree)
       """
     }
-    self.systemPrompt = prompt
+    self.baseSystemPrompt = prompt
   }
 
   /// Send a user message and receive a stream of AgentEvents.
@@ -106,9 +106,29 @@ public class AgentService {
     history = sanitizeHistory(h)
   }
 
+  // MARK: - Public
+
+  /// 呼び出し元からセッションごとに差し替えられる追加コンテキスト。
+  /// send() 時点の値が使われる。
+  public var systemContextOverride: String?
+
+  /// ディレクトリ内の CLAUDE.md から `chatName:` フィールドを読み取る。
+  public static func chatName(inDirectory url: URL) -> String? {
+    let claudeMD = url.appendingPathComponent("CLAUDE.md")
+    guard let content = try? String(contentsOf: claudeMD, encoding: .utf8) else { return nil }
+    for line in content.components(separatedBy: "\n") {
+      let trimmed = line.trimmingCharacters(in: .whitespaces)
+      if trimmed.hasPrefix("chatName:") {
+        let value = trimmed.dropFirst("chatName:".count).trimmingCharacters(in: .whitespaces)
+        return value.isEmpty ? nil : value
+      }
+    }
+    return nil
+  }
+
   // MARK: - Private state
 
-  private let systemPrompt: String
+  private let baseSystemPrompt: String
   private var history: [APIMessage] = []
   private var currentAssistantText = ""  // accumulates text within one API call
 
@@ -230,9 +250,13 @@ public class AgentService {
     )
     for attempt in 0..<maxRetries {
       do {
+        var effectiveSystemPrompt = baseSystemPrompt
+        if let override = systemContextOverride, !override.isEmpty {
+          effectiveSystemPrompt += "\n\n\(override)"
+        }
         let result = try await client.sendMessages(
           smartTruncatedHistory, tools: AgentTools.definitions,
-          systemPrompt: systemPrompt,
+          systemPrompt: effectiveSystemPrompt,
           onText: onText, onToolUse: onToolUse
         )
         await TokenUsageStore.shared.record(usage: result.usage)

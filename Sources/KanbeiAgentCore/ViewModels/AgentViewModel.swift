@@ -18,14 +18,28 @@ public class AgentViewModel: ObservableObject {
   @Published public var pendingBashCommand: PendingBashCommand?
   #endif
 
+  /// 動的なシステムコンテキスト。セット時に AgentService に即反映される。
+  public var systemContext: String? {
+    didSet { service.systemContextOverride = systemContext }
+  }
+
   private let service: AgentService
   private let historyFileURL: URL
 
-  public init(context: any KanbeiAgentContext) {
-    let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-    let dir = support.appendingPathComponent("KanbeiAgent")
-    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-    self.historyFileURL = dir.appendingPathComponent("\(context.historyFileName).json")
+  /// - Parameters:
+  ///   - context: エージェントコンテキスト
+  ///   - storageURL: 履歴 JSON の保存先 URL。nil の場合は App Support/KanbeiAgent/{historyFileName}.json
+  public init(context: any KanbeiAgentContext, storageURL: URL? = nil) {
+    if let storageURL {
+      try? FileManager.default.createDirectory(
+        at: storageURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+      self.historyFileURL = storageURL
+    } else {
+      let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+      let dir = support.appendingPathComponent("KanbeiAgent")
+      try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+      self.historyFileURL = dir.appendingPathComponent("\(context.historyFileName).json")
+    }
     self.workingDirectory = context.workingDirectoryURL
 
     let svc = AgentService(context: context)
