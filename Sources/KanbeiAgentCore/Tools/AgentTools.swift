@@ -10,6 +10,12 @@ import Foundation
 public struct AgentTools {
   public var workingDirectory: URL
 
+  /// App Sandbox が有効かどうかをランタイムで検出する。
+  /// MAS sandbox では `APP_SANDBOX_CONTAINER_ID` 環境変数が必ず存在する。
+  public static var isSandboxed: Bool {
+    ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] != nil
+  }
+
   public init(workingDirectory: URL) {
     self.workingDirectory = workingDirectory
   }
@@ -94,17 +100,19 @@ public struct AgentTools {
       ),
     ]
     #if os(macOS)
-    defs.append(ToolDefinition(
-      name: "bash",
-      description: "Execute shell command. Runs in working directory.",
-      inputSchema: .init(
-        type: "object",
-        properties: [
-          "command": .init(type: "string", description: "Shell command to execute")
-        ],
-        required: ["command"]
-      )
-    ))
+    if !AgentTools.isSandboxed {
+      defs.append(ToolDefinition(
+        name: "bash",
+        description: "Execute shell command. Runs in working directory.",
+        inputSchema: .init(
+          type: "object",
+          properties: [
+            "command": .init(type: "string", description: "Shell command to execute")
+          ],
+          required: ["command"]
+        )
+      ))
+    }
     #endif
     return defs
   }
@@ -121,6 +129,7 @@ public struct AgentTools {
       return fileWrite(input: input)
     #if os(macOS)
     case "bash":
+      guard !AgentTools.isSandboxed else { return "Error: bash is not available in sandbox mode" }
       return await bash(input: input)
     #endif
     case "list_files":

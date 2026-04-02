@@ -365,11 +365,13 @@ public struct ChatView: View {
             Label(String(localized: "chat.attach.file", bundle: .localizedModule), systemImage: "paperclip")
           }
           #if os(macOS)
-          Divider()
-          Button {
-            showingScreenshotPicker = true
-          } label: {
-            Label(String(localized: "chat.attach.screenshot", bundle: .localizedModule), systemImage: "camera.viewfinder")
+          if !AgentTools.isSandboxed {
+            Divider()
+            Button {
+              showingScreenshotPicker = true
+            } label: {
+              Label(String(localized: "chat.attach.screenshot", bundle: .localizedModule), systemImage: "camera.viewfinder")
+            }
           }
           #endif
         } label: {
