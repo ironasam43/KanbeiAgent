@@ -362,7 +362,8 @@ public struct ChatView: View {
           Button {
             showingAttachmentPicker = true
           } label: {
-            Label(String(localized: "chat.attach.file", bundle: .localizedModule), systemImage: "paperclip")
+            let key = AgentTools.isSandboxed ? "chat.attach.file.sandbox" : "chat.attach.file"
+            Label(String(localized: String.LocalizationValue(key), bundle: .localizedModule), systemImage: "paperclip")
           }
           #if os(macOS)
           if !AgentTools.isSandboxed {
@@ -379,7 +380,10 @@ public struct ChatView: View {
             .font(.title2).foregroundStyle(Color.secondary)
         }
         .menuStyle(.borderlessButton).fixedSize()
-        .nativeTooltip(String(localized: "chat.attach.help", bundle: .localizedModule))
+        .nativeTooltip(AgentTools.isSandboxed
+          ? String(localized: "chat.attach.help.sandbox", bundle: .localizedModule)
+          : String(localized: "chat.attach.help", bundle: .localizedModule)
+        )
         #if os(macOS)
         .popover(isPresented: $showingScreenshotPicker, arrowEdge: .bottom) {
           ScreenshotPickerView { windowID in

@@ -11,6 +11,8 @@
 "chat.workspace.help" = "Workspace";
 "chat.attach.help" = "Attach file or image";
 "chat.attach.file" = "File / Image";
+"chat.attach.file.sandbox" = "Attach File";
+"chat.attach.help.sandbox" = "Attach File";
 "chat.attach.screenshot" = "Send Screenshot";
 "chat.workspace.prompt" = "Select";
 "chat.running" = "Running...";

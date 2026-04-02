@@ -11,6 +11,8 @@
 "chat.workspace.help" = "Workspace";
 "chat.attach.help" = "ファイル・画像を添付";
 "chat.attach.file" = "ファイル・画像を添付";
+"chat.attach.file.sandbox" = "ファイルを添付";
+"chat.attach.help.sandbox" = "ファイルを添付";
 "chat.attach.screenshot" = "スクリーンショットを送信";
 "chat.workspace.prompt" = "選択";
 "chat.running" = "実行中…";
