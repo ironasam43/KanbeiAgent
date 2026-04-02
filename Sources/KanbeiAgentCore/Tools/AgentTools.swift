@@ -4,6 +4,8 @@
 //
 
 import Foundation
+import EventKit
+import Contacts
 
 // MARK: - Tool execution engine
 
@@ -114,6 +116,74 @@ public struct AgentTools {
       ))
     }
     #endif
+
+    // Calendar tools（権限が付与されている場合のみ）
+    let calendarStatus = EKEventStore.authorizationStatus(for: .event)
+    if calendarStatus == .fullAccess || calendarStatus == .authorized {
+      defs.append(ToolDefinition(
+        name: "calendar_add_event",
+        description: "カレンダーにイベントを追加する。",
+        inputSchema: .init(
+          type: "object",
+          properties: [
+            "title":               .init(type: "string",  description: "イベントのタイトル"),
+            "start_date":          .init(type: "string",  description: "開始日時（ISO8601形式、例: 2024-04-02T15:00:00+09:00）"),
+            "end_date":            .init(type: "string",  description: "終了日時（ISO8601形式）。省略時は開始から1時間"),
+            "notes":               .init(type: "string",  description: "メモ・説明"),
+            "calendar_identifier": .init(type: "string",  description: "カレンダーID。省略時はデフォルトカレンダー")
+          ],
+          required: ["title", "start_date"]
+        )
+      ))
+      defs.append(ToolDefinition(
+        name: "calendar_search_events",
+        description: "カレンダーのイベントを検索・一覧取得する。",
+        inputSchema: .init(
+          type: "object",
+          properties: [
+            "query":      .init(type: "string", description: "タイトルの検索キーワード。省略時は全件"),
+            "start_date": .init(type: "string", description: "検索開始日時（ISO8601）。省略時は今日"),
+            "end_date":   .init(type: "string", description: "検索終了日時（ISO8601）。省略時は7日後")
+          ],
+          required: []
+        )
+      ))
+    }
+
+    // Reminders tools（権限が付与されている場合のみ）
+    let remindersStatus = EKEventStore.authorizationStatus(for: .reminder)
+    if remindersStatus == .fullAccess || remindersStatus == .authorized {
+      defs.append(ToolDefinition(
+        name: "reminder_add",
+        description: "リマインダーにタスクを追加する。",
+        inputSchema: .init(
+          type: "object",
+          properties: [
+            "title":    .init(type: "string", description: "リマインダーのタイトル"),
+            "due_date": .init(type: "string", description: "期限日時（ISO8601形式）。省略時は期限なし"),
+            "notes":    .init(type: "string", description: "メモ・説明")
+          ],
+          required: ["title"]
+        )
+      ))
+    }
+
+    // Contacts tools（権限が付与されている場合のみ）
+    let contactsStatus = CNContactStore.authorizationStatus(for: .contacts)
+    if contactsStatus == .authorized {
+      defs.append(ToolDefinition(
+        name: "contacts_search",
+        description: "連絡先を名前で検索する。電話番号・メールアドレスを返す。",
+        inputSchema: .init(
+          type: "object",
+          properties: [
+            "query": .init(type: "string", description: "検索する名前（部分一致）")
+          ],
+          required: ["query"]
+        )
+      ))
+    }
+
     return defs
   }
 
@@ -138,6 +208,14 @@ public struct AgentTools {
       return grep(input: input)
     case "glob":
       return glob(input: input)
+    case "calendar_add_event":
+      return await calendarAddEvent(input: input)
+    case "calendar_search_events":
+      return calendarSearchEvents(input: input)
+    case "reminder_add":
+      return await reminderAdd(input: input)
+    case "contacts_search":
+      return contactsSearch(input: input)
     default:
       return "Error: Unknown tool '\(name)'"
     }
@@ -349,6 +427,125 @@ public struct AgentTools {
       files.append(url)
     }
     return files
+  }
+
+  // MARK: - Calendar / Reminders / Contacts
+
+  private func calendarAddEvent(input: [String: Any]) async -> String {
+    guard let title    = input["title"]      as? String,
+          let startStr = input["start_date"] as? String else {
+      return "Error: title と start_date は必須です"
+    }
+    let fmt = ISO8601DateFormatter()
+    fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    let fmt2 = ISO8601DateFormatter()  // フォールバック（秒なし）
+    guard let startDate = fmt.date(from: startStr) ?? fmt2.date(from: startStr) else {
+      return "Error: start_date の形式が不正です（ISO8601形式で指定してください）"
+    }
+    let endDate: Date
+    if let endStr = input["end_date"] as? String,
+       let d = fmt.date(from: endStr) ?? fmt2.date(from: endStr) {
+      endDate = d
+    } else {
+      endDate = startDate.addingTimeInterval(3600)
+    }
+
+    let store = EKEventStore()
+    let event = EKEvent(eventStore: store)
+    event.title     = title
+    event.startDate = startDate
+    event.endDate   = endDate
+    event.notes     = input["notes"] as? String
+    if let calId = input["calendar_identifier"] as? String,
+       let cal = store.calendar(withIdentifier: calId) {
+      event.calendar = cal
+    } else {
+      event.calendar = store.defaultCalendarForNewEvents
+    }
+    do {
+      try store.save(event, span: .thisEvent, commit: true)
+      return "カレンダーに追加しました: \(title)（ID: \(event.eventIdentifier ?? "-")）"
+    } catch {
+      return "Error: \(error.localizedDescription)"
+    }
+  }
+
+  private func calendarSearchEvents(input: [String: Any]) -> String {
+    let store = EKEventStore()
+    let fmt = ISO8601DateFormatter()
+    fmt.formatOptions = [.withInternetDateTime]
+    let startDate = (input["start_date"] as? String).flatMap { fmt.date(from: $0) } ?? Date()
+    let endDate   = (input["end_date"]   as? String).flatMap { fmt.date(from: $0) }
+                    ?? Calendar.current.date(byAdding: .day, value: 7, to: startDate)!
+
+    let predicate = store.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
+    let events    = store.events(matching: predicate)
+
+    let query    = (input["query"] as? String)?.lowercased()
+    let filtered = query.map { q in events.filter { $0.title?.lowercased().contains(q) == true } } ?? events
+
+    if filtered.isEmpty { return "該当するイベントは見つかりませんでした" }
+    let lines = filtered.map { e -> String in
+      let s = fmt.string(from: e.startDate)
+      let t = fmt.string(from: e.endDate)
+      return "- \(e.title ?? "(タイトルなし)") [\(s) 〜 \(t)]"
+    }
+    return lines.joined(separator: "\n")
+  }
+
+  private func reminderAdd(input: [String: Any]) async -> String {
+    guard let title = input["title"] as? String else {
+      return "Error: title は必須です"
+    }
+    let store    = EKEventStore()
+    let reminder = EKReminder(eventStore: store)
+    reminder.title = title
+    reminder.notes = input["notes"] as? String
+    if let dueDateStr = input["due_date"] as? String {
+      let fmt = ISO8601DateFormatter()
+      fmt.formatOptions = [.withInternetDateTime]
+      if let dueDate = fmt.date(from: dueDateStr) {
+        reminder.dueDateComponents = Calendar.current.dateComponents(
+          [.year, .month, .day, .hour, .minute], from: dueDate
+        )
+      }
+    }
+    reminder.calendar = store.defaultCalendarForNewReminders()
+    do {
+      try store.save(reminder, commit: true)
+      return "リマインダーに追加しました: \(title)"
+    } catch {
+      return "Error: \(error.localizedDescription)"
+    }
+  }
+
+  private func contactsSearch(input: [String: Any]) -> String {
+    guard let query = input["query"] as? String else {
+      return "Error: query は必須です"
+    }
+    let store: CNContactStore = CNContactStore()
+    let keys: [CNKeyDescriptor] = [
+      CNContactGivenNameKey  as CNKeyDescriptor,
+      CNContactFamilyNameKey as CNKeyDescriptor,
+      CNContactPhoneNumbersKey   as CNKeyDescriptor,
+      CNContactEmailAddressesKey as CNKeyDescriptor,
+    ]
+    let predicate = CNContact.predicateForContacts(matchingName: query)
+    do {
+      let contacts = try store.unifiedContacts(matching: predicate, keysToFetch: keys)
+      if contacts.isEmpty { return "「\(query)」に一致する連絡先は見つかりませんでした" }
+      return contacts.map { c -> String in
+        let name   = c.familyName + c.givenName
+        let phones = c.phoneNumbers.map(\.value.stringValue).joined(separator: ", ")
+        let emails = c.emailAddresses.map { $0.value as String }.joined(separator: ", ")
+        var parts  = [name]
+        if !phones.isEmpty { parts.append("Tel: \(phones)") }
+        if !emails.isEmpty { parts.append("Email: \(emails)") }
+        return parts.joined(separator: " | ")
+      }.joined(separator: "\n")
+    } catch {
+      return "Error: \(error.localizedDescription)"
+    }
   }
 
   // MARK: - Helper
