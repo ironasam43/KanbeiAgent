@@ -250,7 +250,7 @@ public struct ChatView: View {
   private var messageListView: some View {
     ScrollViewReader { proxy in
       ZStack {
-        Color(red: 0.93, green: 0.93, blue: 0.95)
+        Color.chatBackground
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 12) {
             ForEach(viewModel.messages) { message in
@@ -992,7 +992,7 @@ private struct BashApprovalCard: View {
           .font(.system(.caption, design: .monospaced))
           .padding(8)
           .frame(maxWidth: .infinity, alignment: .leading)
-          .background(Color(NSColor.textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
+          .background(Color.textInputBackground, in: RoundedRectangle(cornerRadius: 6))
           .textSelection(.enabled)
 
         HStack(spacing: 8) {
@@ -1354,11 +1354,35 @@ private struct QuickPromptsEditSheet: View {
 // MARK: - Platform compatible color
 
 private extension Color {
+  static var chatBackground: Color {
+    #if os(macOS)
+    Color(NSColor(name: nil) { appearance in
+      appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        ? NSColor(white: 0.13, alpha: 1)
+        : NSColor(red: 0.93, green: 0.93, blue: 0.95, alpha: 1)
+    })
+    #else
+    Color(UIColor { tc in
+      tc.userInterfaceStyle == .dark
+        ? UIColor(white: 0.13, alpha: 1)
+        : UIColor(red: 0.93, green: 0.93, blue: 0.95, alpha: 1)
+    })
+    #endif
+  }
+
   static var textInputBackground: Color {
     #if os(macOS)
-    Color(NSColor.textBackgroundColor)
+    Color(NSColor(name: nil) { appearance in
+      appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        ? NSColor(white: 0.18, alpha: 1)
+        : NSColor(white: 0.95, alpha: 1)
+    })
     #else
-    Color(.systemBackground)
+    Color(UIColor { tc in
+      tc.userInterfaceStyle == .dark
+        ? UIColor(white: 0.18, alpha: 1)
+        : UIColor(white: 0.95, alpha: 1)
+    })
     #endif
   }
 }
