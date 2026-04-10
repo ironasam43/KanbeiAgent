@@ -31,7 +31,7 @@ public class ClaudeAPIClient {
     request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-    request.setValue("prompt-caching-2024-07-31", forHTTPHeaderField: "anthropic-beta")
+    request.setValue("prompt-caching-2024-07-31,web-search-2025-03-05", forHTTPHeaderField: "anthropic-beta")
 
     let systemArray: [[String: Any]] = [[
       "type": "text",
@@ -39,9 +39,13 @@ public class ClaudeAPIClient {
       "cache_control": ["type": "ephemeral"]
     ]]
 
-    var toolsJSON = (try? JSONSerialization.jsonObject(
+    var toolsJSON: [[String: Any]] = [
+      ["type": "web_search_20250305", "name": "web_search"]
+    ]
+    let customTools = (try? JSONSerialization.jsonObject(
       with: JSONEncoder().encode(tools)
     ) as? [[String: Any]]) ?? []
+    toolsJSON.append(contentsOf: customTools)
     if !toolsJSON.isEmpty {
       toolsJSON[toolsJSON.count - 1]["cache_control"] = ["type": "ephemeral"]
     }
